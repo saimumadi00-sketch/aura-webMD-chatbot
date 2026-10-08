@@ -1,0 +1,344 @@
+/* Scoped styles for Preferences page to avoid relying on global CSS */
+.preferences-page {
+  --bg: #0c1424;
+  --panel: #121a2f;
+  --panel-soft: #182136;
+  --border: #22304a;
+  --text: #e8edff;
+  --muted: #9fb1d5;
+  --accent: #7d95ff;
+  --accent-strong: #8f6bff;
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.35);
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: radial-gradient(circle at 20% 20%, rgba(125, 149, 255, 0.12), transparent 32%),
+    radial-gradient(circle at 80% 20%, rgba(143, 107, 255, 0.14), transparent 36%),
+    linear-gradient(145deg, #0a1120, #0f1222 50%, #0c1424 100%);
+  color: var(--text);
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.preferences-page * {
+  box-sizing: border-box;
+}
+
+.preferences-page a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.preferences-page button {
+  font-family: inherit;
+}
+
+.preferences-page header {
+  background: linear-gradient(180deg, rgba(20, 27, 48, 0.9), rgba(16, 22, 40, 0.92));
+  border-color: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.preferences-page .bg-gray-50,
+.preferences-page .bg-white,
+.preferences-page .dark\:bg-gray-800 {
+  background: var(--panel);
+}
+
+.preferences-page .bg-gray-900,
+.preferences-page .dark\:bg-gray-900 {
+  background: #0b1020;
+}
+
+.preferences-page .text-gray-900,
+.preferences-page .dark\:text-gray-100,
+.preferences-page .text-gray-100,
+.preferences-page .text-white {
+  color: var(--text);
+}
+
+.preferences-page .text-gray-500,
+.preferences-page .text-gray-600,
+.preferences-page .text-gray-700,
+.preferences-page .text-gray-400 {
+  color: var(--muted);
+}
+
+.preferences-page .bg-gray-100,
+.preferences-page .bg-gray-200,
+.preferences-page .bg-gray-700,
+.preferences-page .bg-gray-800 {
+  background: var(--panel-soft);
+}
+
+.preferences-page .border-gray-200,
+.preferences-page .dark\:border-gray-700,
+.preferences-page .border-gray-700,
+.preferences-page .border-gray-800 {
+  border-color: var(--border);
+}
+
+.preferences-page .shadow-xl,
+.preferences-page .shadow-lg,
+.preferences-page .shadow-md {
+  box-shadow: var(--shadow);
+}
+
+.preferences-page .ring-gray-200,
+.preferences-page .dark\:ring-gray-700 {
+  --tw-ring-color: var(--border);
+}
+
+.preferences-page main {
+  position: relative;
+}
+
+.preferences-page nav button {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  border-radius: 14px;
+  transition: all 0.25s ease;
+}
+
+.preferences-page nav button:hover {
+  color: var(--text);
+  border-color: rgba(125, 149, 255, 0.3);
+  background: rgba(28, 37, 64, 0.6);
+}
+
+.preferences-page nav button.bg-white,
+.preferences-page nav button.dark\:bg-gray-800 {
+  background: rgba(28, 37, 64, 0.9);
+  color: var(--text);
+  border-color: rgba(125, 149, 255, 0.45);
+  box-shadow: var(--shadow);
+}
+
+.preferences-page .rounded-3xl,
+.preferences-page .rounded-2xl,
+.preferences-page .rounded-xl {
+  border-radius: 16px;
+}
+
+.preferences-page .border {
+  border-color: var(--border);
+}
+
+.preferences-page input,
+.preferences-page select,
+.preferences-page textarea {
+  background: rgba(18, 27, 48, 0.8);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.preferences-page input:focus,
+.preferences-page select:focus,
+.preferences-page textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(125, 149, 255, 0.15);
+}
+
+.preferences-page .bg-gradient-to-br {
+  background: linear-gradient(135deg, rgba(40, 49, 82, 0.8), rgba(26, 36, 66, 0.9));
+}
+
+.preferences-page .bg-gradient-to-r {
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+}
+
+.preferences-page .text-indigo-500,
+.preferences-page .text-indigo-600,
+.preferences-page .text-indigo-400 {
+  color: var(--accent);
+}
+
+.preferences-page .bg-indigo-600 {
+  background: var(--accent);
+}
+
+.preferences-page .bg-indigo-50,
+.preferences-page .dark\:bg-indigo-900\/30 {
+  background: rgba(125, 149, 255, 0.15);
+}
+
+.preferences-page .bg-blue-50,
+.preferences-page .dark\:bg-blue-900\/10 {
+  background: rgba(70, 117, 255, 0.08);
+  border-color: rgba(70, 117, 255, 0.2);
+}
+
+.preferences-page .text-amber-900,
+.preferences-page .text-red-600,
+.preferences-page .text-blue-900 {
+  color: var(--text);
+}
+
+/* Utility layout replacements (tailwind-like) */
+.preferences-page .min-h-screen { min-height: 100vh; }
+.preferences-page .max-w-6xl { max-width: 72rem; }
+.preferences-page .mx-auto { margin-left: auto; margin-right: auto; }
+.preferences-page .px-4 { padding-left: 1rem; padding-right: 1rem; }
+.preferences-page .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+.preferences-page .lg\:px-8 { padding-left: 2rem; padding-right: 2rem; }
+.preferences-page .py-8 { padding-top: 2rem; padding-bottom: 2rem; }
+.preferences-page .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+.preferences-page .p-2 { padding: 0.5rem; }
+.preferences-page .p-4 { padding: 1rem; }
+.preferences-page .p-6 { padding: 1.5rem; }
+.preferences-page .p-8 { padding: 2rem; }
+.preferences-page .h-16 { height: 4rem; }
+.preferences-page .h-9 { height: 2.25rem; }
+.preferences-page .w-9 { width: 2.25rem; }
+.preferences-page .w-16 { width: 4rem; }
+.preferences-page .w-full { width: 100%; }
+.preferences-page .w-px { width: 1px; }
+.preferences-page .min-h-\[600px\] { min-height: 600px; }
+.preferences-page .flex { display: flex; }
+.preferences-page .inline-flex { display: inline-flex; }
+.preferences-page .flex-col { flex-direction: column; }
+.preferences-page .flex-row { flex-direction: row; }
+.preferences-page .items-center { align-items: center; }
+.preferences-page .items-start { align-items: flex-start; }
+.preferences-page .justify-between { justify-content: space-between; }
+.preferences-page .justify-center { justify-content: center; }
+.preferences-page .flex-shrink-0 { flex-shrink: 0; }
+.preferences-page .gap-2 { gap: 0.5rem; }
+.preferences-page .gap-3 { gap: 0.75rem; }
+.preferences-page .gap-4 { gap: 1rem; }
+.preferences-page .gap-6 { gap: 1.5rem; }
+.preferences-page .gap-8 { gap: 2rem; }
+.preferences-page .space-y-2 > * + * { margin-top: 0.5rem; }
+.preferences-page .space-y-3 > * + * { margin-top: 0.75rem; }
+.preferences-page .space-y-4 > * + * { margin-top: 1rem; }
+.preferences-page .space-y-6 > * + * { margin-top: 1.5rem; }
+.preferences-page .space-y-8 > * + * { margin-top: 2rem; }
+.preferences-page .space-x-2 > * + * { margin-left: 0.5rem; }
+.preferences-page .space-x-3 > * + * { margin-left: 0.75rem; }
+.preferences-page .space-x-4 > * + * { margin-left: 1rem; }
+.preferences-page .rounded-xl { border-radius: 0.75rem; }
+.preferences-page .rounded-2xl { border-radius: 1rem; }
+.preferences-page .rounded-3xl { border-radius: 1.25rem; }
+.preferences-page .rounded-full { border-radius: 999px; }
+.preferences-page .border { border: 1px solid var(--border); }
+.preferences-page .border-b { border-bottom: 1px solid var(--border); }
+.preferences-page .border-t { border-top: 1px solid var(--border); }
+.preferences-page .text-sm { font-size: 0.875rem; }
+.preferences-page .text-xs { font-size: 0.75rem; }
+.preferences-page .text-lg { font-size: 1.125rem; }
+.preferences-page .text-xl { font-size: 1.25rem; }
+.preferences-page .font-bold { font-weight: 700; }
+.preferences-page .font-medium { font-weight: 600; }
+.preferences-page .font-mono { font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+.preferences-page .uppercase { text-transform: uppercase; letter-spacing: 0.08em; }
+.preferences-page .tracking-tight { letter-spacing: -0.01em; }
+.preferences-page .tracking-wider { letter-spacing: 0.14em; }
+.preferences-page .leading-none { line-height: 1; }
+.preferences-page .leading-relaxed { line-height: 1.6; }
+.preferences-page .leading-tight { line-height: 1.25; }
+.preferences-page .shadow-lg { box-shadow: var(--shadow); }
+.preferences-page .shadow-xl { box-shadow: var(--shadow); }
+.preferences-page .shadow-md { box-shadow: 0 12px 30px rgba(0,0,0,0.25); }
+.preferences-page .ring-1 { box-shadow: 0 0 0 1px var(--border); }
+.preferences-page .ring-2 { box-shadow: 0 0 0 2px rgba(255,255,255,0.05); }
+.preferences-page .ring-white { box-shadow: 0 0 0 2px rgba(255,255,255,0.06); }
+.preferences-page .sticky { position: sticky; }
+.preferences-page .top-0 { top: 0; }
+.preferences-page .top-24 { top: 6rem; }
+.preferences-page .z-30 { z-index: 30; }
+.preferences-page .z-10 { z-index: 10; }
+.preferences-page .z-20 { z-index: 20; }
+.preferences-page .z-50 { z-index: 50; }
+.preferences-page .overflow-hidden { overflow: hidden; }
+.preferences-page .backdrop-blur-xl { backdrop-filter: blur(20px); }
+.preferences-page .backdrop-blur-sm { backdrop-filter: blur(6px); }
+.preferences-page .mt-1 { margin-top: 0.25rem; }
+.preferences-page .mt-2 { margin-top: 0.5rem; }
+.preferences-page .mt-4 { margin-top: 1rem; }
+.preferences-page .mt-6 { margin-top: 1.5rem; }
+.preferences-page .mb-4 { margin-bottom: 1rem; }
+.preferences-page .mb-6 { margin-bottom: 1.5rem; }
+.preferences-page .mb-8 { margin-bottom: 2rem; }
+.preferences-page .h-px { height: 1px; }
+.preferences-page .w-1 { width: 0.25rem; }
+.preferences-page .absolute { position: absolute; }
+.preferences-page .relative { position: relative; }
+.preferences-page .left-0 { left: 0; }
+.preferences-page .right-0 { right: 0; }
+.preferences-page .top-0 { top: 0; }
+.preferences-page .bottom-0 { bottom: 0; }
+.preferences-page .inset-0 { inset: 0; }
+.preferences-page .transform { transform: translateZ(0); }
+.preferences-page .-translate-y-1\/2 { transform: translateY(-50%); }
+.preferences-page .pointer-events-none { pointer-events: none; }
+.preferences-page .cursor-pointer { cursor: pointer; }
+.preferences-page .cursor-not-allowed { cursor: not-allowed; }
+.preferences-page .text-center { text-align: center; }
+.preferences-page .text-right { text-align: right; }
+.preferences-page .grid { display: grid; }
+.preferences-page .grid-cols-1 { grid-template-columns: repeat(1,minmax(0,1fr)); }
+.preferences-page .md\:grid-cols-3 { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.preferences-page .md\:grid-cols-2 { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.preferences-page .gap-4 { gap: 1rem; }
+.preferences-page .gap-10 { gap: 2.5rem; }
+.preferences-page .md\:w-64 { width: 16rem; }
+.preferences-page .appearance-none { appearance: none; }
+.preferences-page .shrink-0 { flex-shrink: 0; }
+.preferences-page .dark\:text-indigo-400 {
+  color: var(--accent);
+}
+
+.preferences-page .ring-white,
+.preferences-page .dark\:ring-gray-800 {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.04);
+}
+
+.preferences-page .dark\:bg-gray-900\/30 {
+  background: rgba(18, 24, 43, 0.5);
+}
+
+.preferences-page input[type='range'] {
+  appearance: none;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+.preferences-page input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--accent);
+  box-shadow: 0 0 0 6px rgba(125, 149, 255, 0.18);
+  cursor: pointer;
+}
+
+.preferences-page input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--accent);
+  box-shadow: 0 0 0 6px rgba(125, 149, 255, 0.18);
+  cursor: pointer;
+}
+
+.preferences-page .space-y-1.bg-gray-50,
+.preferences-page .space-y-2.bg-gray-50 {
+  background: var(--panel);
+}
+
+.preferences-page .bg-amber-50,
+.preferences-page .bg-red-50,
+.preferences-page .bg-blue-50 {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.preferences-page .text-amber-900,
+.preferences-page .text-red-600,
+.preferences-page .text-blue-900 {
+  color: var(--text);
+}

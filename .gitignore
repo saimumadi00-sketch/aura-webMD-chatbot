@@ -1,0 +1,22 @@
+# Local environment values and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*service-account*.json
+*serviceAccount*.json
+.aws/
+
+# Dependencies and generated output (may contain bundled environment values)
+node_modules/
+dist/
+*.log
+
+# Patient-uploaded files
+doctors_portal/uploads/
+
+# Local editor and operating system files
+.vscode/
+.DS_Store
+Thumbs.db

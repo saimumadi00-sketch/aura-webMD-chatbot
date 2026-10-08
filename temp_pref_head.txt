@@ -1,0 +1,8 @@
+  const navItems = [
+    { id: 'ai-preferences', label: 'AI Configuration', icon: Bot },
+    { id: 'general', label: 'General & Profile', icon: User },
+    { id: 'data', label: 'Data & Privacy', icon: Shield },
+  ];
+
+  return (
+    <div className={`preferences-page min-h-screen ${darkMode ? 'theme-dark' : 'theme-light'}`}>
