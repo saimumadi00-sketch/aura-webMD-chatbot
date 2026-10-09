@@ -1,5 +1,13 @@
+/*
+ * Tailwind configuration: source discovery and typography/forms/container-query extensions.
+ */
+
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+import typography from '@tailwindcss/typography';
+import forms from '@tailwindcss/forms';
+import containerQueries from '@tailwindcss/container-queries';
+
+export default {
   content: [
     "./src/**/*.{js,jsx,ts,tsx}", // Make sure this matches your file structure!
   ],
@@ -7,8 +15,8 @@ module.exports = {
     extend: {},
   },
   plugins: [
-    require('@tailwindcss/typography'),
-    require('@tailwindcss/forms'),
-    require('@tailwindcss/container-queries'),
+    typography,
+    forms,
+    containerQueries,
   ],
 }

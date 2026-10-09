@@ -1,3 +1,7 @@
+/*
+ * Lint policy for browser React source: recommended JS/React/hooks checks with repository-specific warning levels.
+ */
+
 module.exports = {
   env: {
     browser: true,

@@ -1,3 +1,9 @@
+/*
+ * Reusable animation definitions and utility classes for message entry, loading, and other interactive states.
+ */
+
+/* Animation timeline: callers select it through animation declarations on their elements. */
+
 @keyframes slide-in {
   from {
     transform: translateX(-20px);
@@ -13,6 +19,8 @@
   animation: slide-in 0.3s ease-out;
 }
 
+/* Animation timeline: callers select it through animation declarations on their elements. */
+
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -26,6 +34,8 @@
   animation: fade-in 0.5s ease-in-out both;
 }
 
+/* Animation timeline: callers select it through animation declarations on their elements. */
+
 @keyframes bounce {
   0%, 100% {
     transform: translateY(0);
@@ -38,6 +48,8 @@
 .bounce {
   animation: bounce 1s infinite;
 }
+
+/* Adapt layout/visibility when this viewport or user-preference condition matches. */
 
 @media (prefers-reduced-motion: reduce) {
   .slide-in,

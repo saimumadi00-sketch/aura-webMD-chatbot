@@ -1,0 +1,31 @@
+/* One palette for the React app and PHP portal. Theme changes colors, never layout. */
+:root {
+  color-scheme: dark;
+  --aura-font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --aura-bg: #12151c;
+  --aura-panel: #1a1f29;
+  --aura-soft: #222936;
+  --aura-border: #343e4e;
+  --aura-text: #eef1f7;
+  --aura-muted: #a4b0c3;
+  --aura-brand: #6366e8;
+  --aura-brand-hover: #5255d5;
+  --aura-highlight: #b4b7ff;
+  --aura-tint: #282b48;
+  --aura-danger: #ffb4b4;
+  --aura-success: #9de1be;
+  --aura-shadow: 0 8px 24px rgb(0 0 0 / 8%);
+}
+html:not(.dark) {
+  color-scheme: light;
+  --aura-bg: #f6f7fa;
+  --aura-panel: #ffffff;
+  --aura-soft: #f0f2f7;
+  --aura-border: #dce1e9;
+  --aura-text: #222c3c;
+  --aura-muted: #5e6c80;
+  --aura-highlight: #4b4ec6;
+  --aura-tint: #eeefff;
+  --aura-danger: #b42332;
+  --aura-success: #187344;
+}

@@ -1,16 +1,15 @@
+/*
+ * Empty-thread introduction: starter cards use the normal send action; ChatActive keeps the composer mounted.
+ */
+
 import React from 'react';
-import DecryptedText from './DecryptedText';
-import LoadingIndicator from './LoadingIndicator';
+import { Brain } from 'lucide-react';
 
 const Workspace = ({
   handleStarterPrompt,
   isBotLoading,
-  currentMessage,
-  setCurrentMessage,
-  handleKeyDown,
-  handleSend,
-  messagesEndRef,
 }) => {
+  // Titles are presentation; text is the actual message sent through the normal chat flow.
   const starterPrompts = [
     {
       id: 'checkin',
@@ -41,28 +40,15 @@ const Workspace = ({
   return (
     <section className="workspace">
       <div className="workspace-shell">
+        <div className="workspace-intro">
         <div className="workspace-hero">
-          <div className="golden-loader" aria-hidden="true">
-            <div className="golden-loader-ring">
-              <div className="golden-loader-spinner" />
-            </div>
-          </div>
+          <div className="workspace-mark" aria-hidden="true"><Brain size={26} /></div>
           <div>
-            <p className="workspace-eyebrow spinning-label">
-              Golden hour thinking
+            <p className="workspace-eyebrow">
+              A moment for yourself
             </p>
             <h1>
-              <DecryptedText
-                text="How can I help you today?"
-                className="hero-title-text"
-                encryptedClassName="hero-title-text hero-title-text-encrypted"
-                parentClassName="hero-scramble"
-                animateOn="view"
-                sequential
-                revealDirection="center"
-                maxIterations={8}
-                speed={40}
-              />
+              How can I help you today?
             </h1>
           </div>
         </div>
@@ -81,50 +67,6 @@ const Workspace = ({
             </button>
           ))}
         </div>
-
-        <div className="chat-card">
-          <div className="chat-heading-row">
-            <span>Today</span>
-          </div>
-          <div className="chat-messages">
-            <div className="message-row bot">
-              <div className="message-bubble bot">
-                I'm here whenever you're ready to share.
-              </div>
-            </div>
-            {isBotLoading && <LoadingIndicator />}
-            <div ref={messagesEndRef} />
-          </div>
-
-          <div className="chat-input">
-            <textarea
-              value={currentMessage}
-              onChange={(e) => setCurrentMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Send Aura a message"
-              className="chat-input-inner"
-              rows={1}
-              disabled={isBotLoading}
-            />
-          <div className="chat-input-actions">
-              <button
-                type="button"
-                className="tool-btn primary"
-                onClick={handleSend}
-                disabled={!currentMessage?.trim() || isBotLoading}
-              >
-                Send
-              </button>
-            </div>
-          </div>
-        </div>
-
-          <div className="chat-footer workspace-footer">
-          <div className="chat-footer-left">
-            <span className="model-pill">OpenAI</span>
-            <span className="chip">Supportive</span>
-          </div>
-          <span>Secure, private conversations</span>
         </div>
       </div>
     </section>

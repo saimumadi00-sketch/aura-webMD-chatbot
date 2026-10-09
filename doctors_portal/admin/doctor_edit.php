@@ -1,5 +1,6 @@
 <?php
-require_once "_header.php";
+/* Doctor editing: load the selected ID first, then update its fields when a valid form is submitted. */
+require_once "_auth.php";
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($id <= 0) {
@@ -16,19 +17,20 @@ $res = $stmt->get_result();
 $doctor = $res->fetch_assoc();
 $stmt->close();
 
+// Stop before rendering or updating if the requested doctor does not exist.
 if (!$doctor) {
     die("Doctor not found.");
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name      = trim($_POST['name'] ?? "");
-    $specialty = trim($_POST['specialty'] ?? "");
-    $email     = trim($_POST['email'] ?? "");
-    $phone     = trim($_POST['phone'] ?? "");
-    $fee       = trim($_POST['fee'] ?? "");
-    $hospital  = trim($_POST['hospital'] ?? "");
-    $city      = trim($_POST['city'] ?? "");
-    $about     = trim($_POST['about'] ?? "");
+    $name      = post_text('name');
+    $specialty = post_text('specialty');
+    $email     = post_text('email');
+    $phone     = post_text('phone');
+    $fee       = post_text('fee');
+    $hospital  = post_text('hospital');
+    $city      = post_text('city');
+    $about     = post_text('about');
 
     if ($name === "") {
         $error = "Name is required.";
@@ -60,6 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+<?php require_once "_header.php"; ?>
 <h1 class="mb-4">Edit Doctor</h1>
 
 <?php if ($error): ?>
@@ -67,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php endif; ?>
 
 <form method="post">
+    <?php echo csrf_field(); ?>
     <div class="mb-3">
         <label class="form-label">Name *</label>
         <input type="text" name="name" class="form-control" required

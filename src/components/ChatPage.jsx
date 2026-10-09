@@ -1,8 +1,13 @@
+/*
+ * Session page adapter: choose preferences/billing/chat from internal view state and forward hook actions as props.
+ */
+
 import React from 'react';
 import Chat from './Chat';
 import Preferences from './Preferences';
 import Billing from './Billing';
 import Loading from './Loading';
+import { Navigate } from 'react-router-dom';
 
 const ChatPage = ({
   user,
@@ -14,8 +19,11 @@ const ChatPage = ({
   currentMessage,
   setCurrentMessage,
   isBotLoading,
+  canStopReply,
+  handleStopReply,
   conversations,
   conversationReady,
+  activeArchiveId,
   handleLogout,
   handleSavePreferences,
   handleClearHistory,
@@ -31,15 +39,22 @@ const ChatPage = ({
   goChat,
   goPreferences,
   goBilling,
-  goWelcome,
   goHome,
+  goLogin,
+  chatError,
+  preferencesError,
 }) => {
   if (!isAuthReady && !isGuest) return <Loading />;
 
+  if (!user) return <Navigate to="/welcome" replace />;
+
+  // Internal view state selects subpages without introducing additional URL routes.
   if (view === 'preferences') {
     return (
       <Preferences
         preferences={preferences}
+        onLogin={goLogin}
+        error={preferencesError}
         onSavePreferences={handleSavePreferences}
         onClearHistory={handleClearHistory}
         onSummarizeChat={handleSummarizeChat}
@@ -61,9 +76,11 @@ const ChatPage = ({
   if (view === 'billing') {
     return (
       <Billing
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
         user={user}
         isGuest={isGuest}
-        onBack={isGuest ? goWelcome : goPreferences}
+        onBack={goChat}
         onSelectPlan={handlePlanSelect}
       />
     );
@@ -71,6 +88,11 @@ const ChatPage = ({
 
   return (
     <Chat
+      threadKey={activeArchiveId || 'active'}
+      theme={theme}
+      onToggleTheme={handleToggleTheme}
+      onHome={goHome}
+      error={chatError || preferencesError}
       messages={messages}
       currentMessage={currentMessage}
       setCurrentMessage={setCurrentMessage}
@@ -86,6 +108,8 @@ const ChatPage = ({
       conversationReady={conversationReady}
       user={user}
       isBotLoading={isBotLoading}
+      canStopReply={canStopReply}
+      onStopReply={handleStopReply}
     />
   );
 };

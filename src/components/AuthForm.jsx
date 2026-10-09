@@ -1,5 +1,12 @@
+/*
+ * Controlled email/password form. Field state stays here; the parent owns Firebase authentication and errors.
+ */
+
 import React, { useState, useEffect } from "react";
 import "../styles/welcome.css";
+import "../styles/auth.css";
+import { useNavigate } from "react-router-dom";
+import ThemeToggle from './ThemeToggle';
 
 export default function AuthForm({
   mode = "login",
@@ -7,13 +14,19 @@ export default function AuthForm({
   onLogin,
   onBack,
   error,
+  notice,
+  onResetPassword,
+  theme,
+  onToggleTheme,
 }) {
+  const navigate = useNavigate();
   const isRegister = mode === "register";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // Suggest a username from the email only while the username draft is empty.
   useEffect(() => {
     if (isRegister && email.includes("@")) {
       const suggestedName = email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "");
@@ -21,52 +34,45 @@ export default function AuthForm({
     }
   }, [email, isRegister, username]);
 
+  // Prevent a page reload and keep the submit button busy until the parent action settles.
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isLoading) return;
     setIsLoading(true);
-    if (isRegister) await onRegister(email, password, username);
-    else await onLogin(email, password);
-    setIsLoading(false);
+    try {
+      if (isRegister) await onRegister(email, password, username);
+      else await onLogin(email, password);
+    } finally { setIsLoading(false); }
   };
 
   return (
     <div className="auth-experience">
+      <div className="auth-theme-control"><ThemeToggle theme={theme} onToggleTheme={onToggleTheme} /></div>
       <div className="auth-glow" />
       <div className="auth-card">
         <div className="auth-info">
           <div className="auth-top-row">
             <button type="button" onClick={onBack} className="auth-logo">
-              AI
+              Aura
             </button>
             <p>
-              New here?{" "}
-              <span className="auth-link" onClick={() => onBack()}>
-                Log in or continue as guest
-              </span>
+              {isRegister ? 'Already have an account?' : 'New here?'}{" "}
+              <button type="button" className="auth-link" onClick={() => navigate(isRegister ? "/login" : "/register")}>
+                {isRegister ? "Log in" : "Create an account"}
+              </button>
             </p>
           </div>
 
           <h1>{isRegister ? "Sign up" : "Welcome back"}</h1>
-          <p className="auth-subtext">Sign in with Aura or continue with email</p>
-
-          <div className="auth-social">
-            <button type="button" title="Google sign-in">
-              <span aria-hidden="true">G</span>
-              Google
-            </button>
-            <button type="button" title="Apple sign-in">
-              <span aria-hidden="true">A</span>
-              Apple ID
-            </button>
-          </div>
-
-          <div className="auth-divider">Or continue with email</div>
+          <p className="auth-subtext">{isRegister ? 'Create an account to save your conversations and preferences.' : 'A quiet space to pick up where you left off.'}</p>
+          <div className="auth-divider">Continue with email</div>
 
           <form onSubmit={handleSubmit} className="auth-form">
             <label>
               Email
               <input
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
@@ -79,6 +85,7 @@ export default function AuthForm({
                 Username
                 <input
                   type="text"
+                  autoComplete="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="janesmith"
@@ -91,6 +98,8 @@ export default function AuthForm({
               Password
               <input
                 type="password"
+                autoComplete={isRegister ? 'new-password' : 'current-password'}
+                minLength={isRegister ? 6 : undefined}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="********"
@@ -98,6 +107,8 @@ export default function AuthForm({
               />
             </label>
 
+            {!isRegister && <button className="auth-link auth-reset" type="button" disabled={isLoading} onClick={async () => { setIsLoading(true); try { await onResetPassword(email); } finally { setIsLoading(false); } }}>Forgot password?</button>}
+            {notice && <p role="status">{notice}</p>}
             {error && <p className="auth-error">{error}</p>}
 
             <button type="submit" disabled={isLoading} className="auth-primary">
@@ -113,20 +124,11 @@ export default function AuthForm({
         </div>
 
         <div className="auth-illustration">
-          <div className="bot">
-            <div className="bot-head">
-              <div className="bot-eye left" />
-              <div className="bot-eye right" />
-            </div>
-            <div className="bot-body">
-              <div className="bot-panel" />
-              <div className="bot-arm left" />
-              <div className="bot-arm right">
-                <div className="bot-hand" />
-              </div>
-            </div>
-          </div>
-          <div className="auth-cta">Aura is ready to help!</div>
+          <span className="auth-orbit" aria-hidden="true">✦</span>
+          <h2>A little room<br />to breathe.</h2>
+          <p>Reflect, find a small next step, or simply talk things through.</p>
+          <div className="auth-preview">“We can take this one conversation at a time.”</div>
+          <p className="auth-cta">Your AI companion, at your pace.</p>
         </div>
       </div>
     </div>

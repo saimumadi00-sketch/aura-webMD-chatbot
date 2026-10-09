@@ -1,0 +1,4 @@
+Options -Indexes
+<FilesMatch "^(config|session|storage|validation|router)\.php$|\.sql$">
+    Require all denied
+</FilesMatch>

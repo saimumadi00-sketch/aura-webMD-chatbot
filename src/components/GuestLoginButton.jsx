@@ -1,3 +1,7 @@
+/*
+ * Optional Firebase anonymous sign-in button; unlike the main local guest flow, it requires anonymous auth to be enabled.
+ */
+
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { signInAsGuest } from "../services/auth";

@@ -1,20 +1,22 @@
 <?php
-require_once "_header.php";
+/* Doctor creation: read the form, require a name, and bind submitted fields into an INSERT statement. */
+require_once "_auth.php";
 
 $error = "";
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name      = trim($_POST['name'] ?? "");
-    $specialty = trim($_POST['specialty'] ?? "");
-    $email     = trim($_POST['email'] ?? "");
-    $phone     = trim($_POST['phone'] ?? "");
-    $fee       = trim($_POST['fee'] ?? "");
-    $hospital  = trim($_POST['hospital'] ?? "");
-    $city      = trim($_POST['city'] ?? "");
-    $about     = trim($_POST['about'] ?? "");
+    $name      = post_text('name');
+    $specialty = post_text('specialty');
+    $email     = post_text('email');
+    $phone     = post_text('phone');
+    $fee       = post_text('fee');
+    $hospital  = post_text('hospital');
+    $city      = post_text('city');
+    $about     = post_text('about');
 
     if ($name === "") {
         $error = "Name is required.";
     } else {
+        // Bind form values separately from SQL so text is treated as data.
         $stmt = $conn->prepare("
             INSERT INTO doctors (name, specialty, email, phone, fee, hospital, city, about)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -40,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+<?php require_once "_header.php"; ?>
 <h1 class="mb-4">Add Doctor</h1>
 
 <?php if ($error): ?>
@@ -47,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php endif; ?>
 
 <form method="post">
+    <?php echo csrf_field(); ?>
     <div class="mb-3">
         <label class="form-label">Name *</label>
         <input type="text" name="name" class="form-control" required>

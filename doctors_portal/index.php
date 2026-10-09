@@ -1,20 +1,23 @@
-﻿<?php
+<?php
+/* Public doctor directory: query doctors alphabetically and render escaped database values into booking cards. */
 require_once "config.php";
 
+// Listing cards use this query result; booking links carry the selected doctor ID.
 $result = $conn->query("SELECT * FROM doctors ORDER BY name");
+// Separate PHP hosts can link back to the frontend; packaged deployments use ../.
+$app_url = getenv('AURA_APP_URL') ?: '../';
+if ($app_url !== '../' && (!filter_var($app_url, FILTER_VALIDATE_URL) || !in_array(strtolower(parse_url($app_url, PHP_URL_SCHEME) ?: ''), ['http', 'https'], true))) $app_url = '../';
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Doctors Portal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Aura | Doctor support</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- Fonts + custom styles -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/style.css">
+    <script src="assets/theme.js"></script>
 </head>
 
 <body class="page-doctors">
@@ -22,8 +25,10 @@ $result = $conn->query("SELECT * FROM doctors ORDER BY name");
 <nav class="navbar navbar-expand-lg navbar-dark main-navbar">
 
     <div class="container">
-        <a class="navbar-brand" href="index.php">Doctors Portal</a>
-        <div class="d-flex">
+        <a class="navbar-brand" href="index.php"><img class="portal-brand-icon" src="assets/brand.svg" alt="">Aura<span class="portal-section">Doctor support</span></a>
+        <div class="portal-nav">
+            <a class="btn btn-outline-light btn-sm" href="<?php echo htmlspecialchars($app_url, ENT_QUOTES, 'UTF-8'); ?>">Back to Aura</a>
+            <button type="button" data-theme-toggle class="btn btn-outline-light btn-sm">Change theme</button>
             <a class="btn btn-outline-light btn-sm" href="admin/login.php">Admin Login</a>
         </div>
     </div>
@@ -35,7 +40,7 @@ $result = $conn->query("SELECT * FROM doctors ORDER BY name");
       <p class="hero-eyebrow">Need professional support?</p>
       <h1 class="hero-title">Find a doctor who understands your story.</h1>
       <p class="hero-subtitle">
-        Browse trusted professionals and share your chat history so they can start with context from day one.
+        Browse the doctor directory and request an appointment. You can optionally share a conversation summary to give your doctor context.
       </p>
     </section>
 
@@ -43,7 +48,7 @@ $result = $conn->query("SELECT * FROM doctors ORDER BY name");
       <section class="doctors-grid">
         <div class="row g-4">
           <?php while ($row = $result->fetch_assoc()): ?>
-            <div class="col-md-4 fade-in-up">
+            <div class="col-md-6 col-lg-4">
               <div class="card doctor-card h-100">
                 <div class="card-body">
                   <div class="d-flex justify-content-between align-items-start mb-2">

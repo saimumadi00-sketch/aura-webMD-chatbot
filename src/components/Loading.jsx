@@ -1,3 +1,7 @@
+/*
+ * Full-page spinner used while the initial account state is still being resolved.
+ */
+
 import React from 'react';
 
 

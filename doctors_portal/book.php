@@ -1,107 +1,79 @@
-﻿<?php
-require_once "config.php";
-
-$doctor_id = isset($_GET['doctor_id']) ? (int)$_GET['doctor_id'] : 0;
-
-// Messages for user feedback
-$success_message = "";
-$error_message = "";
-
-// When form is submitted
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $doctor_id     = (int)($_POST['doctor_id'] ?? 0);
-    $patient_name  = trim($_POST['patient_name'] ?? "");
-    $patient_email = trim($_POST['patient_email'] ?? "");
-    $patient_phone = trim($_POST['patient_phone'] ?? "");
-    $date          = $_POST['appointment_date'] ?? "";
-    $time          = $_POST['appointment_time'] ?? "";
-    $reason        = trim($_POST['reason'] ?? "");
-    $chat_pdf_path = null;
-
-    if ($doctor_id <= 0 || $patient_name === "" || $date === "" || $time === "") {
-        $error_message = "Please fill in all required fields (Name, Date, Time).";
-    }
-
-    // Handle chat PDF upload (optional) if no previous error
-    if ($error_message === "" && isset($_FILES['chat_pdf']) && $_FILES['chat_pdf']['error'] !== UPLOAD_ERR_NO_FILE) {
-        if ($_FILES['chat_pdf']['error'] === UPLOAD_ERR_OK) {
-            $tmpName  = $_FILES['chat_pdf']['tmp_name'];
-            $origName = basename($_FILES['chat_pdf']['name']);
-            $ext      = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-
-            if ($ext !== 'pdf') {
-                $error_message = "Chat history must be a PDF file.";
-            } else {
-                $uploadDir = __DIR__ . '/uploads/';
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0777, true);
-                }
-                $safeName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $origName);
-                $newName  = 'chat_' . time() . '_' . $safeName;
-                $dest     = $uploadDir . $newName;
-
-                if (move_uploaded_file($tmpName, $dest)) {
-                    $chat_pdf_path = 'uploads/' . $newName; // relative path for links
-                } else {
-                    $error_message = "Failed to upload chat PDF.";
-                }
-            }
-        } else {
-            $error_message = "File upload error.";
-        }
-    }
-
-    // If everything is okay, insert appointment
-    if ($error_message === "") {
-        $stmt = $conn->prepare("INSERT INTO appointments
-            (doctor_id, patient_name, patient_email, patient_phone,
-             appointment_date, appointment_time, reason, chat_pdf_path)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param(
-            "isssssss",
-            $doctor_id,
-            $patient_name,
-            $patient_email,
-            $patient_phone,
-            $date,
-            $time,
-            $reason,
-            $chat_pdf_path
-        );
-
-        if ($stmt->execute()) {
-            $success_message = "Your appointment request has been sent. We will contact you soon.";
-        } else {
-            $error_message = "Could not save appointment. Please try again.";
-        }
-        $stmt->close();
-    }
-}
-
-// Load doctor info
-$stmt = $conn->prepare("SELECT * FROM doctors WHERE id = ?");
-$stmt->bind_param("i", $doctor_id);
+<?php
+/* Public booking request: validate the doctor/form before storing any patient data. */
+require_once __DIR__ . '/session.php';
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') require_valid_csrf();
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/storage.php';
+require_once __DIR__ . '/validation.php';
+$raw_id = ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' ? ($_POST['doctor_id'] ?? null) : ($_GET['doctor_id'] ?? null);
+$doctor_id = filter_var(is_scalar($raw_id) ? $raw_id : null, FILTER_VALIDATE_INT);
+if (!$doctor_id || $doctor_id < 1) { http_response_code(400); exit('Invalid doctor ID.'); }
+$stmt = $conn->prepare('SELECT * FROM doctors WHERE id = ?');
+$stmt->bind_param('i', $doctor_id);
 $stmt->execute();
-$doctor_result = $stmt->get_result();
-$doctor = $doctor_result->fetch_assoc();
+$doctor = $stmt->get_result()->fetch_assoc();
 $stmt->close();
-
-if (!$doctor) {
-    die("Doctor not found.");
+if (!$doctor) { http_response_code(404); exit('Doctor not found.'); }
+$success_message = $_SESSION['booking_success'] ?? '';
+unset($_SESSION['booking_success']);
+$error_message = '';
+$patient_name = $patient_email = $patient_phone = $date = $time = $reason = '';
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+    $patient_name = post_text('patient_name');
+    $patient_email = post_text('patient_email');
+    $patient_phone = post_text('patient_phone');
+    $date = post_text('appointment_date');
+    $time = post_text('appointment_time');
+    $reason = post_text('reason');
+    $error_message = validate_booking($patient_name, $patient_email, $patient_phone, $date, $time, $reason);
+    $chat_pdf_path = null;
+    $destination = null;
+    // Optional uploads are checked as actual PDF content, capped, and placed outside the web root.
+    $upload = $_FILES['chat_pdf'] ?? null;
+    if ($error_message === '' && $upload && ($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+        if (!is_array($upload) || !is_string($upload['tmp_name'] ?? null) || !is_string($upload['name'] ?? null) || ($upload['error'] ?? null) !== UPLOAD_ERR_OK) {
+            $error_message = 'Could not upload the PDF. Check the server upload limit.';
+        } elseif (strtolower(pathinfo($upload['name'], PATHINFO_EXTENSION)) !== 'pdf' || !is_uploaded_file($upload['tmp_name']) || !valid_pdf($upload['tmp_name'])) {
+            $error_message = 'Attach a valid PDF no larger than 5 MB.';
+        } else {
+            try {
+                $chat_pdf_path = bin2hex(random_bytes(16)) . '.pdf';
+                $destination = portal_upload_directory() . DIRECTORY_SEPARATOR . $chat_pdf_path;
+                if (!move_uploaded_file($upload['tmp_name'], $destination)) throw new RuntimeException('Upload failed.');
+                chmod($destination, 0600);
+            } catch (RuntimeException $e) { $error_message = 'Private PDF storage is unavailable. Contact the portal administrator.'; }
+        }
+    }
+    if ($error_message === '') {
+        $stmt = $conn->prepare('INSERT INTO appointments (doctor_id, patient_name, patient_email, patient_phone, appointment_date, appointment_time, reason, chat_pdf_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        if (!$stmt) $error_message = 'Could not save appointment. Please try again.';
+        else {
+            $stmt->bind_param('isssssss', $doctor_id, $patient_name, $patient_email, $patient_phone, $date, $time, $reason, $chat_pdf_path);
+            if ($stmt->execute()) {
+                // Redirect after insertion: refreshing the result page cannot submit a duplicate request.
+                $_SESSION['booking_success'] = 'Your appointment request has been recorded. Contact the clinic to confirm availability.';
+                unset($_SESSION['csrf_token']);
+                header('Location: book.php?doctor_id=' . $doctor_id, true, 303);
+                exit;
+            }
+            $error_message = 'Could not save appointment. Please try again.';
+            $stmt->close();
+        }
+    }
+    // Failed inserts must not leave patient files orphaned in storage.
+    if ($error_message !== '' && $destination && is_file($destination)) unlink($destination);
 }
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Doctors Portal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Aura | Doctor support</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- Fonts + custom styles -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/style.css">
+    <script src="assets/theme.js"></script>
 </head>
 
 <body class="page-book">
@@ -109,7 +81,8 @@ if (!$doctor) {
 <nav class="navbar navbar-expand-lg navbar-dark main-navbar">
 
     <div class="container">
-        <a class="navbar-brand" href="index.php">Doctors Portal</a>
+        <a class="navbar-brand" href="index.php"><img class="portal-brand-icon" src="assets/brand.svg" alt="">Aura<span class="portal-section">Doctor support</span></a>
+        <div class="portal-nav"><a href="index.php" class="btn btn-outline-light btn-sm">Find a doctor</a><button type="button" data-theme-toggle class="btn btn-outline-light btn-sm">Change theme</button></div>
     </div>
 </nav>
 
@@ -146,50 +119,51 @@ if (!$doctor) {
           <?php endif; ?>
 
           <form method="post" enctype="multipart/form-data" class="mt-3">
+            <?php echo csrf_field(); ?>
             <input type="hidden" name="doctor_id" value="<?php echo $doctor_id; ?>">
 
             <div class="mb-3">
-              <label class="form-label">Your name *</label>
-              <input type="text" name="patient_name" class="form-control" required>
+              <label for="patient_name" class="form-label">Your name *</label>
+              <input type="text" autocomplete="name" id="patient_name" name="patient_name" value="<?php echo htmlspecialchars($patient_name, ENT_QUOTES, 'UTF-8'); ?>" class="form-control" required>
             </div>
 
             <div class="mb-3">
-              <label class="form-label">Email (optional)</label>
-              <input type="email" name="patient_email" class="form-control">
+              <label for="patient_email" class="form-label">Email (optional)</label>
+              <input type="email" autocomplete="email" id="patient_email" name="patient_email" value="<?php echo htmlspecialchars($patient_email, ENT_QUOTES, 'UTF-8'); ?>" class="form-control">
             </div>
 
             <div class="mb-3">
-              <label class="form-label">Phone (optional)</label>
-              <input type="text" name="patient_phone" class="form-control">
+              <label for="patient_phone" class="form-label">Phone (optional)</label>
+              <input type="tel" autocomplete="tel" id="patient_phone" name="patient_phone" value="<?php echo htmlspecialchars($patient_phone, ENT_QUOTES, 'UTF-8'); ?>" class="form-control">
             </div>
 
             <div class="row">
               <div class="col-md-6 mb-3">
-                <label class="form-label">Date *</label>
-                <input type="date" name="appointment_date" class="form-control" required>
+                <label for="appointment_date" class="form-label">Date *</label>
+                <input type="date" id="appointment_date" name="appointment_date" value="<?php echo htmlspecialchars($date, ENT_QUOTES, 'UTF-8'); ?>" class="form-control" required>
               </div>
               <div class="col-md-6 mb-3">
-                <label class="form-label">Time *</label>
-                <input type="time" name="appointment_time" class="form-control" required>
+                <label for="appointment_time" class="form-label">Time *</label>
+                <input type="time" id="appointment_time" name="appointment_time" value="<?php echo htmlspecialchars($time, ENT_QUOTES, 'UTF-8'); ?>" class="form-control" required>
               </div>
             </div>
 
             <div class="mb-3">
-              <label class="form-label">Reason / notes (optional)</label>
-              <textarea name="reason" class="form-control" rows="3"></textarea>
+              <label for="reason" class="form-label">Reason / notes (optional)</label>
+              <textarea id="reason" name="reason" class="form-control" rows="3"><?php echo htmlspecialchars($reason, ENT_QUOTES, 'UTF-8'); ?></textarea>
             </div>
 
             <div class="mb-3">
-              <label class="form-label">Attach chat history (PDF, optional)</label>
-              <input type="file" name="chat_pdf" accept="application/pdf" class="form-control">
+              <label for="chat_pdf" class="form-label">Attach chat history (PDF, optional)</label>
+              <input type="file" id="chat_pdf" name="chat_pdf" accept="application/pdf" class="form-control">
               <div class="form-text">
-                Export your chat from Aura as a PDF, then upload it here so the doctor can review it.
+                Optional PDF, up to 5 MB. It is available only to signed-in portal administrators.
               </div>
             </div>
 
             <div class="d-flex justify-content-between align-items-center mt-4">
               <a href="index.php" class="btn btn-outline-light">
-                <- Back
+                Back to doctors
               </a>
               <button type="submit" class="btn btn-glow">
                 Submit appointment

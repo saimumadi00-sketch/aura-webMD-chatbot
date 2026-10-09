@@ -1,6 +1,12 @@
+/*
+ * Browser adapter: stream chat replies through the private proxy; tools retain their JSON response contract.
+ */
+
 import { OPENAI_CONFIG } from '../config/constants';
 import { exponentialBackoffFetch, formatChatHistory, getSystemPrompt } from '../utils/helpers';
+import { fetchChatReply } from './chat-stream';
 
+// Preserve the choices/message contract so callers can display fallback text like a normal reply.
 const buildFallbackResponse = (messages = [], overrideText) => {
   const lastUserEntry = [...messages].reverse().find((msg) => msg?.sender === 'user');
   const lastUserText = lastUserEntry?.text?.trim();
@@ -20,11 +26,13 @@ const buildFallbackResponse = (messages = [], overrideText) => {
 };
 
 
+// UI preference names map to a bounded set of model identifiers accepted by the proxy.
 const resolveModel = (modelKey) => {
   const map = OPENAI_CONFIG.MODELS || {};
   return map[modelKey] || OPENAI_CONFIG.DEFAULT_MODEL || 'gpt-4o-mini';
 };
 
+// Convert the 0-100 creativity slider into a clamped model temperature.
 const toTemperature = (creativity = 50) => {
   const normalized = Number.isFinite(creativity) ? creativity : 50;
   return Math.min(1, Math.max(0, normalized / 100));
@@ -38,28 +46,13 @@ const buildChatPayload = (messages, preferences = {}) => ({
   ],
   temperature: toTemperature(preferences.creativity),
   max_tokens: 512,
-  stream: false,
+  stream: true,
 });
 
 const OpenAIService = {
-  sendChatMessage: async (messages, preferences = {}) => {
-
-    const payload = buildChatPayload(messages, preferences);
-
-    try {
-      const response = await exponentialBackoffFetch(OPENAI_CONFIG.API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      return response;
-    } catch (err) {
-      console.error('OpenAI chat error:', err);
-      return buildFallbackResponse(messages);
-    }
-  },
+  // Same-origin requests carry no private credentials; the server attaches its key.
+  sendChatMessage: (messages, preferences = {}, options = {}) =>
+    fetchChatReply(OPENAI_CONFIG.API_URL, buildChatPayload(messages, preferences), options),
 
   callTool: async (userPrompt, systemPrompt = 'You are Aura, a supportive assistant.', preferences = {}) => {
     if (!userPrompt) {

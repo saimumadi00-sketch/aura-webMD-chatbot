@@ -1,8 +1,12 @@
-import React, { useState } from "react";
-import { useAutoScroll } from "../utils/helpers";
+/*
+ * Chat shell: coordinate sidebar actions, empty/active composers, and the PDF-summary confirmation dialog.
+ */
+
+import React, { useEffect, useRef, useState } from "react";
 import Sidebar from "./Sidebar";
 import ChatActive from "./ChatActive";
 import Workspace from "./Workspace";
+import ThemeToggle from './ThemeToggle';
 import "../styles/animations.css";
 
 const Chat = ({
@@ -21,9 +25,38 @@ const Chat = ({
   conversationReady = false,
   user,
   isBotLoading = false,
+  canStopReply = false,
+  onStopReply,
   onHome,
+  error,
+  theme,
+  onToggleTheme,
+  threadKey,
 }) => {
   const [showSummaryPrompt, setShowSummaryPrompt] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const menuButtonRef = useRef(null);
+  const summaryButtonRef = useRef(null);
+  const cancelSummaryRef = useRef(null);
+  const closeSidebar = () => { setIsSidebarOpen(false); menuButtonRef.current?.focus(); };
+  useEffect(() => {
+    if (!isSidebarOpen) return;
+    const mobile = window.matchMedia('(max-width: 900px)');
+    const handleResize = () => { if (!mobile.matches) setIsSidebarOpen(false); };
+    mobile.addEventListener('change', handleResize);
+    return () => mobile.removeEventListener('change', handleResize);
+  }, [isSidebarOpen]);
+  useEffect(() => {
+    if (!isSidebarOpen && !showSummaryPrompt) return;
+    const handleEscape = (event) => {
+      if (event.key !== 'Escape') return;
+      if (showSummaryPrompt) { setShowSummaryPrompt(false); summaryButtonRef.current?.focus(); }
+      else closeSidebar();
+    };
+    document.addEventListener('keydown', handleEscape);
+    if (showSummaryPrompt) cancelSummaryRef.current?.focus();
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isSidebarOpen, showSummaryPrompt]);
   const modalStyles = {
     backdrop: {
       position: "fixed",
@@ -37,13 +70,13 @@ const Chat = ({
       animation: "fadeIn 200ms ease-out",
     },
     card: {
-      background: "linear-gradient(135deg, #0f172a 0%, #101827 50%, #0b1326 100%)",
-      color: "#e2e8f0",
+      background: "var(--bg-panel)",
+      color: "var(--text-main)",
       borderRadius: "18px",
       padding: "22px",
-      width: "340px",
-      boxShadow: "0 25px 80px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06)",
-      border: "1px solid rgba(255,255,255,0.08)",
+      width: "min(400px, calc(100vw - 32px))",
+      boxShadow: "0 25px 80px var(--surface-shadow-color)",
+      border: "1px solid var(--border-subtle)",
       transform: "translateY(6px)",
       animation: "modalPop 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards",
     },
@@ -54,21 +87,15 @@ const Chat = ({
       marginTop: "18px",
     },
   };
-  const messagesEndRef = useAutoScroll([messages]);
+  // A restored archive or any new message switches from starter prompts to the active thread.
   const hasConversation = conversationReady || messages.length > 0;
 
+  // Starter cards pass explicit text; composer events use the controlled draft instead.
   const handleSend = (overrideText) => {
     const candidate = typeof overrideText === "string" ? overrideText : currentMessage;
     const text = candidate?.trim();
     if (!text || isBotLoading) return;
     onSendMessage(text);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
   };
 
   const handleStarterPrompt = (promptText) => {
@@ -79,70 +106,77 @@ const Chat = ({
   };
 
   return (
-    <div className="app">
+    <div className={`app ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+      {isSidebarOpen && <button type="button" className="sidebar-backdrop" aria-label="Close navigation" onClick={closeSidebar} />}
       <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={closeSidebar}
         user={user}
         conversations={conversations}
-        onNewConversation={onNewConversation}
-        onOpenConversation={onOpenConversation}
+        onNewConversation={() => { closeSidebar(); onNewConversation(); }}
+        onOpenConversation={(id) => { closeSidebar(); onOpenConversation(id); }}
         onRenameConversation={onRenameConversation}
         onDeleteConversation={onDeleteConversation}
-        onOpenPreferences={onOpenPreferences}
-        onManageBilling={onManageBilling}
+        onOpenPreferences={() => { closeSidebar(); onOpenPreferences(); }}
+        onManageBilling={() => { closeSidebar(); onManageBilling(); }}
         onHome={onHome}
       />
 
-      <main className={`main ${hasConversation ? "main-active" : ""}`}>
+      <main inert={isSidebarOpen && window.matchMedia('(max-width: 900px)').matches} className={`main ${hasConversation ? "main-active" : ""}`}>
         <div className="top-bar">
+          <button ref={menuButtonRef} type="button" className="mobile-menu-button pill" aria-label="Open navigation" aria-expanded={isSidebarOpen} aria-controls="chat-sidebar" onClick={() => setIsSidebarOpen(true)}>☰ <span>Menu</span></button>
+          <div className="chat-context"><strong>Aura</strong><span>Your space to reflect</span></div>
           <div className="pill">Free plan</div>
+          <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />
           <button
             type="button"
             className="pill pill-upgrade"
+            ref={summaryButtonRef}
             onClick={() => setShowSummaryPrompt(true)}
-            disabled={isBotLoading}
+            disabled={isBotLoading || !messages.length}
           >
             Summary
           </button>
         </div>
+        {error && <p role="alert" className="chat-error">{error}</p>}
 
-        {hasConversation ? (
           <ChatActive
+            threadKey={threadKey}
+            key={user?.uid || user?.id || 'guest'}
             messages={messages}
             currentMessage={currentMessage}
             setCurrentMessage={setCurrentMessage}
             onSendMessage={handleSend}
             isBotLoading={isBotLoading}
+            canStopReply={canStopReply}
+            onStopReply={onStopReply}
             user={user}
+            emptyState={!hasConversation ? <Workspace handleStarterPrompt={handleStarterPrompt} isBotLoading={isBotLoading} /> : null}
           />
-        ) : (
-          <Workspace
-            handleStarterPrompt={handleStarterPrompt}
-            isBotLoading={isBotLoading}
-            currentMessage={currentMessage}
-            setCurrentMessage={setCurrentMessage}
-            handleKeyDown={handleKeyDown}
-            handleSend={handleSend}
-            messagesEndRef={messagesEndRef}
-          />
-        )}
       </main>
 
       {showSummaryPrompt && (
-        <div style={modalStyles.backdrop}>
-          <div style={modalStyles.card}>
-            <p className="modal-title" style={{ fontWeight: 800, marginBottom: 10, letterSpacing: "0.01em" }}>
+        <div style={modalStyles.backdrop} onClick={() => { setShowSummaryPrompt(false); summaryButtonRef.current?.focus(); }}>
+          <div style={modalStyles.card} role="dialog" aria-modal="true" aria-labelledby="summary-title" onClick={event => event.stopPropagation()} onKeyDown={event => {
+            if (event.key !== 'Tab') return;
+            const buttons = [...event.currentTarget.querySelectorAll('button:not(:disabled)')];
+            const target = event.shiftKey ? buttons.at(-1) : buttons[0];
+            if (document.activeElement === (event.shiftKey ? buttons[0] : buttons.at(-1))) { event.preventDefault(); target?.focus(); }
+          }}>
+            <p id="summary-title" className="modal-title" style={{ fontWeight: 800, marginBottom: 10, letterSpacing: "0.01em" }}>
               Export a gentle summary?
             </p>
-            <p className="modal-body" style={{ marginBottom: 14, lineHeight: 1.5, color: "#cbd5e1" }}>
-              We will condense this chat into a warm, concise brief you can share with a clinician or keep for your own reflection.
+            <p className="modal-body" style={{ marginBottom: 14, lineHeight: 1.5, color: "var(--text-muted)" }}>
+              Download an AI summary and a copy of this conversation as a PDF. The export can include your messages and images.
             </p>
             <div className="modal-actions" style={modalStyles.actions}>
               <button
                 type="button"
                 className="pill"
-                onClick={() => setShowSummaryPrompt(false)}
+                ref={cancelSummaryRef}
+                onClick={() => { setShowSummaryPrompt(false); summaryButtonRef.current?.focus(); }}
                 disabled={isBotLoading}
-                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                style={{ background: "var(--bg-panel-soft)", border: "1px solid var(--border-subtle)" }}
               >
                 Cancel
               </button>

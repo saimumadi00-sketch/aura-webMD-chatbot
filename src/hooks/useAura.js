@@ -1,6 +1,10 @@
-﻿import { useEffect, useState } from "react";
+/*
+ * Application orchestration: compose auth/chat hooks with theme, preferences, AI tools, and conversation PDF export.
+ */
+
+import { useEffect, useRef, useState } from "react";
 import { jsPDF } from "jspdf";
-import FirebaseService from "../services/firebase";
+import FirebaseService, { isFirebaseEnabled } from "../services/firebase";
 import OpenAIService from "../services/openai-api";
 import { useAuth } from "./useAuth";
 import { useChat } from "./useChat";
@@ -15,13 +19,13 @@ const DEFAULT_PREFERENCES = {
   model: "balanced",
   creativity: 50,
   verbosity: 50,
-  memoryEnabled: true,
-  webAccess: true,
+  memoryEnabled: false,
+  webAccess: false,
   codeExecution: false,
   dataSharing: false,
-  historyRetention: 30,
+  historyRetention: 0,
   customInstructions: "",
-  notifications: { email: true, push: false, productUpdates: true },
+  notifications: { email: false, push: false, productUpdates: false },
 };
 
 const detectSystemTheme = () => {
@@ -49,19 +53,26 @@ const getStoredString = (key, fallback) => {
 };
 
 export const useAura = () => {
+  // Compose account and chat state here so pages share one session and preferences.
   const auth = useAuth();
   const { user, userId, isGuest } = auth;
+  const preferenceKey = `${isGuest ? "guest" : "account"}:${userId || "anonymous"}`;
+  const preferenceSession = useRef({ key: preferenceKey });
+  // Replace the identity even when returning to an account, invalidating old callbacks.
+  if (preferenceSession.current.key !== preferenceKey) preferenceSession.current = { key: preferenceKey };
 
+  // Device-local guest settings initialize the session before any signed-in subscription arrives.
   const [preferences, setPreferences] = useState(() => {
     const stored = getStoredJSON(GUEST_PREF_KEY, null);
     return { ...DEFAULT_PREFERENCES, ...(stored || {}) };
   });
+  const [preferencesError, setPreferencesError] = useState(null);
   const [theme, setTheme] = useState(() =>
     getStoredString(THEME_STORAGE_KEY, getStoredString("aura_theme", detectSystemTheme()))
   );
 
   const chat = useChat(user, userId, isGuest, preferences);
-  const { messages, setIsBotLoading, isBotLoading } = chat;
+  const { messages } = chat;
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -69,6 +80,7 @@ export const useAura = () => {
     if (!body) return;
     const root = document.documentElement;
 
+    // Keep custom theme selectors and Tailwind's dark marker aligned with one theme value.
     body.classList.toggle("theme-light", theme === "light");
     body.classList.toggle("theme-dark", theme !== "light");
     root.classList.toggle("dark", theme !== "light");
@@ -80,60 +92,67 @@ export const useAura = () => {
   }, [theme]);
 
   useEffect(() => {
-    if (!isGuest) return;
+    // A portal tab on the same origin can change the shared device preference.
+    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+    const syncTheme = event => {
+      if (event.key === THEME_STORAGE_KEY && (event.newValue === 'light' || event.newValue === 'dark')) setTheme(event.newValue);
+    };
+    window.addEventListener('storage', syncTheme);
+    return () => window.removeEventListener('storage', syncTheme);
+  }, []);
+
+  useEffect(() => {
+    setPreferencesError(null);
+    if (!isGuest && userId) { setPreferences(DEFAULT_PREFERENCES); return; }
     const stored = getStoredJSON(GUEST_PREF_KEY, null);
     setPreferences(stored ? { ...DEFAULT_PREFERENCES, ...stored } : DEFAULT_PREFERENCES);
-  }, [isGuest]);
+  }, [isGuest, userId]);
   
   // --- Firestore subscriptions (prefs) for non-guest ---
   useEffect(() => {
     if (!auth.isAuthReady || !userId || isGuest) return;
+    const session = preferenceSession.current;
+    let active = true;
 
     const unsubPrefs = FirebaseService.firestore.subscribeToPreferences(
       userId,
       (doc) => {
-        if (doc.exists()) setPreferences({ ...DEFAULT_PREFERENCES, ...doc.data() });
+        if (!active || session !== preferenceSession.current) return;
+        setPreferences(doc.exists() ? { ...DEFAULT_PREFERENCES, ...doc.data() } : DEFAULT_PREFERENCES);
+      },
+      () => {
+        if (active && session === preferenceSession.current) setPreferencesError("Could not load preferences. Check your connection and Firestore permissions.");
       }
     );
 
     return () => {
+      active = false;
       unsubPrefs?.();
     };
   }, [auth.isAuthReady, userId, isGuest]);
 
-  // --- Preferences & history (non-guest only) ---
+  // Persist before applying edits so failed writes reach the UI's error handler.
   const handleSavePreferences = async (newPrefs = {}) => {
+    const session = preferenceSession.current;
     const updated = { ...DEFAULT_PREFERENCES, ...preferences, ...newPrefs };
+    if (isGuest || !userId || !isFirebaseEnabled) localStorage.setItem(GUEST_PREF_KEY, JSON.stringify(updated));
+    else await FirebaseService.firestore.savePreferences(userId, updated);
+    if (session !== preferenceSession.current) return;
     setPreferences(updated);
-
-    if (isGuest || !userId) {
-      try {
-        localStorage.setItem(GUEST_PREF_KEY, JSON.stringify(updated));
-      } catch {
-        /* noop */
-      }
-      return;
-    }
-
-    try {
-      await FirebaseService.firestore.savePreferences(userId, updated);
-    } catch (e) {
-      console.error("Error saving preferences:", e);
-    }
+    setPreferencesError(null);
   };
 
-  const handlePlanSelect = (planId) => {
-    if (!user || isGuest) return;
-    alert(`Plan ${planId} selected. Connect billing provider here.`);
-  };
+  const handlePlanSelect = () => auth.goChat();
 
   const handleToggleTheme = () => {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
 
   // --- Tools & messaging ---
+  // Insert a placeholder and replace it when the tool reply arrives, preserving message position.
   const callOpenAITool = async (userPrompt, systemPrompt) => {
-    setIsBotLoading(true);
+    const operation = chat.beginOperation();
+    if (!operation) return;
 
     let botMsgRef = null;
     const placeholderId = `tool-${Date.now()}`;
@@ -145,7 +164,7 @@ export const useAura = () => {
     };
 
     try {
-      if (isGuest) {
+      if (chat.useLocalMessages) {
         chat.setMessages((m) => [...m, placeholder]);
       } else {
         botMsgRef = await FirebaseService.firestore.addMessage(userId, {
@@ -155,10 +174,12 @@ export const useAura = () => {
         });
       }
 
+      if (!chat.isCurrentOperation(operation)) return;
       const result = await OpenAIService.callTool(userPrompt, systemPrompt, preferences);
+      if (!chat.isCurrentOperation(operation)) return;
       const text = result.choices?.[0]?.message?.content || "Sorry, I had trouble with that request.";
 
-      if (isGuest) {
+      if (chat.useLocalMessages) {
         chat.setMessages((prev) => {
           const idx = prev.findIndex((msg) => msg.id === placeholderId);
           if (idx === -1) return [...prev, { id: placeholderId, text, sender: "bot", createdAt: Date.now() }];
@@ -174,10 +195,11 @@ export const useAura = () => {
         });
       }
     } catch (e) {
+      if (!chat.isCurrentOperation(operation)) return;
       console.error("OpenAI tool error:", e);
       const text = "Sorry, I had trouble with that request.";
 
-      if (isGuest) {
+      if (chat.useLocalMessages) {
         chat.setMessages((prev) => {
           const idx = prev.findIndex((msg) => msg.id === placeholderId);
           if (idx === -1) return [...prev, { id: placeholderId, text, sender: "bot", createdAt: Date.now() }];
@@ -193,13 +215,14 @@ export const useAura = () => {
         });
       }
     } finally {
-      setIsBotLoading(false);
+      chat.finishOperation(operation);
     }
   };
 
   const getJsPdf = () => jsPDF;
 
   const generateSummaryPdf = (summaryText, convoMessages = []) => {
+    // Export includes the summary and conversation, including supported image attachments.
     const JsPdfCtor = getJsPdf();
     if (!JsPdfCtor) return;
 
@@ -210,6 +233,7 @@ export const useAura = () => {
     const margin = 15;
     let cursorY = 20;
 
+    // Add a page when the next text/image block would cross the bottom margin.
     const ensureSpace = (height = 6) => {
       if (cursorY + height > 280) {
         doc.addPage();
@@ -265,8 +289,9 @@ export const useAura = () => {
       if (dataUrl) {
         try {
           const { width, height } = doc.getImageProperties(dataUrl);
-          const maxWidth = 120;
-          const scaledHeight = (height * maxWidth) / width;
+          const scale = Math.min(120 / width, 230 / height);
+          const maxWidth = width * scale;
+          const scaledHeight = height * scale;
           ensureSpace(scaledHeight + 4);
           const imageType = toImageType(dataUrl);
           doc.addImage(dataUrl, imageType, margin, cursorY, maxWidth, scaledHeight);
@@ -299,9 +324,11 @@ export const useAura = () => {
     doc.save(`aura-summary-${Date.now()}.pdf`);
   };
 
+  // Send a text transcript for summarization, then export it with the original conversation.
   const handleSummarizeChat = async () => {
-    if (isBotLoading) return;
-    setIsBotLoading(true);
+    if (!messages.length) return;
+    const operation = chat.beginOperation();
+    if (!operation) return;
     try {
       const chatContent = messages
         .map((m) => {
@@ -324,11 +351,11 @@ export const useAura = () => {
         console.error("Summary generation error:", err);
       }
 
-      generateSummaryPdf(summaryText, messages);
+      if (chat.isCurrentOperation(operation)) generateSummaryPdf(summaryText, messages);
     } catch (err) {
       console.error("Summary PDF error:", err);
     } finally {
-      setIsBotLoading(false);
+      chat.finishOperation(operation);
     }
   };
 
@@ -354,6 +381,7 @@ export const useAura = () => {
     ...auth,
     ...chat,
     preferences,
+    preferencesError,
     theme,
     handleSavePreferences,
     handlePlanSelect,
@@ -365,7 +393,3 @@ export const useAura = () => {
     handleQuickTool,
   };
 };
-
-
-
-

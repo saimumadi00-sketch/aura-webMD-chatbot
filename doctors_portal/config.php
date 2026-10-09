@@ -1,20 +1,8 @@
 <?php
-// config.php - DB connection + session
-
-$host = "localhost";
-$user = "root";      // XAMPP default
-$pass = "";          // XAMPP default is empty password
-$dbname = "doctors_portal";
-
-$conn = new mysqli($host, $user, $pass, $dbname);
-
-if ($conn->connect_error) {
-    die("Database connection failed: " . $conn->connect_error);
-}
-
-$conn->set_charset("utf8mb4");
-
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-?>
+/* Shared connection bootstrap: credentials come from the PHP server environment. */
+require_once __DIR__ . '/session.php';
+if (!class_exists('mysqli')) { http_response_code(503); exit('Portal unavailable: enable the PHP mysqli extension.'); }
+mysqli_report(MYSQLI_REPORT_OFF);
+$conn = new mysqli(getenv('DB_HOST') ?: 'localhost', getenv('DB_USER') ?: 'root', getenv('DB_PASSWORD') ?: '', getenv('DB_NAME') ?: 'doctors_portal', (int)(getenv('DB_PORT') ?: 3306));
+if ($conn->connect_error) { http_response_code(503); exit('Portal database unavailable. Check server configuration.'); }
+$conn->set_charset('utf8mb4');

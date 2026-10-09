@@ -1,6 +1,12 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/*
+ * Base frontend stylesheet loaded before custom.css; later rules can override these global defaults.
+ */
+
+@import "tailwindcss" source(none);
+@source "./";
+@config "../tailwind.config.js";
+/* Theme follows the application's toggle rather than the operating system alone. */
+@custom-variant dark (&:where(.dark, .dark *));
 body {
   background-color: #050507;
   margin: 0;

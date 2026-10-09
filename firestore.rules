@@ -1,8 +1,10 @@
+// Each signed-in user owns their messages and preferences; all other paths are denied.
 rules_version = '2';
 service cloud.firestore {
 match /databases/{database}/documents {
 // Each user can only access their own data under this path
-match /artifacts/{appId}/users/{userId}/{document=**} {
+match /users/{userId}/{document=**} {
+// Require a signed-in identity matching the owner segment for all nested documents.
 allow read, write: if request.auth != null && request.auth.uid == userId;
 }
 }

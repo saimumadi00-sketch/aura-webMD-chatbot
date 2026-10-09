@@ -1,318 +1,259 @@
-import { useState, useEffect } from "react";
-import FirebaseService, { isFirebaseEnabled } from "../services/firebase";
-import OpenAIService from "../services/openai-api";
+﻿/*
+ * Conversation lifecycle: signed-in active threads sync with Firestore.
+ * Reopened archives continue locally and persist to the same account's device archive.
+ */
+import { useState, useEffect, useRef } from 'react';
+import FirebaseService, { isFirebaseEnabled } from '../services/firebase';
+import OpenAIService from '../services/openai-api';
 
-const doctorsPortalUrl =
-  import.meta.env.VITE_DOCTORS_PORTAL_URL || "/doctors_portal/index.php";
+const doctorsPortalUrl = import.meta.env.VITE_DOCTORS_PORTAL_URL || '/doctors_portal/index.php';
+const HUMAN_INTENT_REGEX = /(talk to (a )?(human|person|therapist|doctor)|human help|human support|real person|book( a)? doctor|doctor appointment|need (a )?therapist|speak to (a )?therapist|can i talk to a human)/i;
 
-const HUMAN_INTENT_REGEX =
-  /(talk to (a )?(human|person|therapist|doctor)|human help|human support|real person|book( a)? doctor|doctor appointment|need (a )?therapist|speak to (a )?therapist|can i talk to a human)/i;
-const CANCEL_REGEX = /(cancel|stop|never mind|nevermind|no thanks|not now)/i;
-const CONFIRM_REGEX = /(confirm|yes|yeah|yep|sure|ok|okay|do it|go ahead|book)/i;
-
-const extractContact = (text) => {
-  const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  if (email) return email[0];
-  const phone = text.match(/\+?\d[\d\s().-]{7,}/);
-  if (phone) return phone[0].trim();
-  return "";
-};
-
-const extractSlot = (text) => {
-  const isoDate = text.match(/\b\d{4}-\d{1,2}-\d{1,2}(?:\s+\d{1,2}:\d{2}\s*(am|pm)?)?/i);
-  if (isoDate) return isoDate[0];
-  const mdDate = text.match(/\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?(?:\s+\d{1,2}:\d{2}\s*(am|pm)?)?/i);
-  if (mdDate) return mdDate[0];
-  const dayWord = text.match(
-    /\b(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next (week|monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b/i
-  );
-  const time = text.match(/\b\d{1,2}(:\d{2})?\s*(am|pm)?\b/i);
-  if (dayWord && time) return `${dayWord[0]} ${time[0]}`.trim();
-  if (dayWord) return dayWord[0];
-  return "";
+const loadConversations = (key) => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(stored) ? stored.filter(c => c && typeof c.id === 'string' && Array.isArray(c.messages)) : [];
+  } catch { return []; }
 };
 
 export const useChat = (user, userId, isGuest, preferences) => {
-  const buildStorageKey = (uid, guest) => `aura-conversations-${uid || (guest ? "guest" : "anon")}`;
-  const loadConversations = (key) => {
-    if (typeof window === "undefined") return [];
-    try {
-      const stored = localStorage.getItem(key);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const storageKey = buildStorageKey(userId, isGuest);
-
+  const storageKey = `aura-conversations-${userId || (isGuest ? 'guest' : 'anon')}`;
   const [messages, setMessages] = useState([]);
-  const [currentMessage, setCurrentMessage] = useState("");
+  const [currentMessage, setCurrentMessage] = useState('');
   const [isBotLoading, setIsBotLoading] = useState(false);
   const [conversations, setConversations] = useState(() => loadConversations(storageKey));
+  const [loadedStorageKey, setLoadedStorageKey] = useState(storageKey);
+  const [activeArchiveId, setActiveArchiveId] = useState(null);
   const [conversationReady, setConversationReady] = useState(false);
-  const [appointmentState, setAppointmentState] = useState({
-    stage: "idle",
-    contact: "",
-    slot: "",
-  });
+  const [chatError, setChatError] = useState(null);
+  const busyRef = useRef(false);
+  const replyController = useRef(null);
+  const pendingMessages = useRef(new Map());
+  const [canStopReply, setCanStopReply] = useState(false);
+  const sessionRef = useRef({ key: storageKey, generation: 0 });
+  if (sessionRef.current.key !== storageKey) {
+    sessionRef.current = { key: storageKey, generation: sessionRef.current.generation + 1 };
+    busyRef.current = false;
+  }
+  const useLocalMessages = isGuest || !isFirebaseEnabled || !userId || !!activeArchiveId;
 
   useEffect(() => {
+    replyController.current?.abort();
+    pendingMessages.current.clear();
+    setCanStopReply(false);
     setConversations(loadConversations(storageKey));
+    setLoadedStorageKey(storageKey);
+    setActiveArchiveId(null);
+    setMessages([]);
+    setCurrentMessage('');
+    setChatError(null);
+    setConversationReady(false);
+    setIsBotLoading(false);
   }, [storageKey]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(conversations));
-    } catch {
-      /* noop */
-    }
-  }, [conversations, storageKey]);
+    // Skip the identity-change render: its archive state still belongs to the previous account.
+    if (loadedStorageKey !== storageKey) return;
+    try { localStorage.setItem(storageKey, JSON.stringify(conversations)); }
+    catch { setChatError('Conversation archives could not be saved on this device.'); }
+  }, [conversations, storageKey, loadedStorageKey]);
 
   useEffect(() => {
-    if (!userId || isGuest || !isFirebaseEnabled) {
-      setMessages([]);
-      setConversationReady(false);
-      return;
-    }
-
-    const unsubMsgs = FirebaseService.firestore.subscribeToMessages(userId, (snapshot) => {
-      const loaded = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setMessages(loaded);
+    if (useLocalMessages || loadedStorageKey !== storageKey) return;
+    let alive = true;
+    const unsubscribe = FirebaseService.firestore.subscribeToMessages(userId, snapshot => {
+      if (!alive) return;
+      const loaded = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      for (const message of loaded) pendingMessages.current.delete(message.id);
+      setMessages([...loaded, ...pendingMessages.current.values()]);
       setConversationReady(loaded.length > 0);
-    });
+    }, () => { if (alive) setChatError('Could not sync messages. Check your connection and Firestore permissions.'); });
+    return () => { alive = false; unsubscribe?.(); };
+  }, [userId, useLocalMessages, loadedStorageKey, storageKey]);
 
-    return () => unsubMsgs?.();
-  }, [userId, isGuest]);
+  useEffect(() => {
+    // An archive is a separate local thread: Firestore cannot replace it after a new reply.
+    if (!activeArchiveId || loadedStorageKey !== storageKey || isBotLoading) return;
+    setConversations(prev => prev.map(c => c.id === activeArchiveId ? { ...c, messages, updatedAt: Date.now() } : c));
+  }, [activeArchiveId, messages, loadedStorageKey, storageKey, isBotLoading]);
 
-  const handleAppointmentFlow = async (text, { useLocal }) => {
-    const lower = text.toLowerCase();
-    const contactFromMsg = extractContact(text);
-    const slotFromMsg = extractSlot(text);
-
-    const sendBot = async (botText) => {
-      const botMessage = {
-        text: botText,
-        sender: "bot",
-        createdAt: useLocal ? Date.now() : FirebaseService.serverTimestamp(),
-      };
-      if (useLocal) {
-        setMessages((m) => [...m, { id: `b-${Date.now()}`, ...botMessage }]);
-      } else {
-        await FirebaseService.firestore.addMessage(userId, botMessage);
-      }
-      setIsBotLoading(false);
-    };
-
-    const reset = () => setAppointmentState({ stage: "idle", contact: "", slot: "" });
-
-    if (CANCEL_REGEX.test(lower) && appointmentState.stage !== "idle") {
-      reset();
-      await sendBot("Okay, I won't schedule anything. If you want help booking later, just let me know.");
-      return true;
-    }
-
-    if (appointmentState.stage === "idle" && !HUMAN_INTENT_REGEX.test(text)) {
-      return false;
-    }
-
-    const nextContact = appointmentState.contact || contactFromMsg;
-    const nextSlot = appointmentState.slot || slotFromMsg;
-
-    if (appointmentState.stage === "idle" && HUMAN_INTENT_REGEX.test(text)) {
-      setAppointmentState({ stage: "collecting", contact: nextContact, slot: nextSlot });
-      await sendBot(
-        "I can set up a doctor/therapist appointment with our partners. Please share your contact info (email or phone) and your preferred date/time, and confirm you want me to book it."
-      );
-      return true;
-    }
-
-    if (appointmentState.stage === "collecting") {
-      if (!nextContact) {
-        setAppointmentState({ stage: "collecting", contact: "", slot: nextSlot });
-        await sendBot(
-          "Got it. To book, I need your contact info (email or phone). Please share that and your preferred date/time."
-        );
-        return true;
-      }
-      if (!nextSlot) {
-        setAppointmentState({ stage: "collecting", contact: nextContact, slot: "" });
-        await sendBot(
-          "Thanks. What date and time works for you? Include a day and time (e.g., tomorrow 2pm or 2025-12-11 15:00)."
-        );
-        return true;
-      }
-      setAppointmentState({ stage: "ready", contact: nextContact, slot: nextSlot });
-      await sendBot(
-        `I can book this: contact ${nextContact}, preferred time ${nextSlot}. Reply "yes" to confirm and I'll open the booking portal.`
-      );
-      return true;
-    }
-
-    if (appointmentState.stage === "ready") {
-      const confirm = CONFIRM_REGEX.test(lower);
-      if (confirm) {
-        reset();
-        await sendBot(`Booking confirmed. I'm sending you to our partners to finalize: ${doctorsPortalUrl}`);
-        try {
-          if (typeof window !== "undefined") {
-            window.open(doctorsPortalUrl, "_blank", "noopener");
-          }
-        } catch (err) {
-          console.error("Portal redirect failed", err);
-        }
-        return true;
-      }
-
-      setAppointmentState({ stage: "ready", contact: nextContact, slot: nextSlot });
-      await sendBot(
-        `I have contact ${nextContact} and time ${nextSlot}. Reply "yes" to confirm, or share updates if you want to change anything.`
-      );
-      return true;
-    }
-
-    return false;
-  };
-
-  const handleSendMessage = async (messageText) => {
-    const trimmed = messageText?.trim();
-    if (!trimmed || isBotLoading) return;
-
-    const userMessage = {
-      text: trimmed,
-      sender: "user",
-      createdAt: Date.now(),
-    };
-    const history = [...messages, userMessage];
-    const useLocal = isGuest || !isFirebaseEnabled || !userId;
-
-    setCurrentMessage("");
+  // Share one synchronous operation lock with tools and PDF summaries.
+  const beginOperation = () => {
+    if (busyRef.current || isBotLoading) return null;
+    busyRef.current = true;
     setIsBotLoading(true);
-
-    try {
-      if (useLocal) {
-        setMessages((m) => [...m, { id: `u-${Date.now()}`, ...userMessage }]);
-      } else {
-        await FirebaseService.firestore.addMessage(userId, {
-          ...userMessage,
-          createdAt: FirebaseService.serverTimestamp(),
-        });
-      }
-
-      const handled = await handleAppointmentFlow(trimmed, { useLocal });
-      if (handled) return;
-
-      if (useLocal) {
-        const result = await OpenAIService.sendChatMessage(history, preferences);
-        const text = result.choices?.[0]?.message?.content || "I'm here to listen. Could you share more?";
-        setMessages((m) => [
-          ...m,
-          { id: `b-${Date.now()}`, text, sender: "bot", createdAt: Date.now() },
-        ]);
-      } else {
-        const result = await OpenAIService.sendChatMessage(history, preferences);
-        const botText = result.choices?.[0]?.message?.content;
-        const botMsg = {
-          text: botText || "I'm here to listen. Could you share more?",
-          sender: "bot",
-          createdAt: FirebaseService.serverTimestamp(),
-        };
-        await FirebaseService.firestore.addMessage(userId, botMsg);
-      }
-    } catch (e) {
-      console.error("sendMessage error:", e);
-      const fallback = {
-        text: "I'm having trouble reaching the service right now, but I'm still here with you. Let's try again in a moment.",
-        sender: "bot",
-        createdAt: Date.now(),
-      };
-      if (useLocal) {
-        setMessages((m) => [...m, { id: `err-${Date.now()}`, ...fallback }]);
-      } else {
-        await FirebaseService.firestore.addMessage(userId, {
-          ...fallback,
-          createdAt: FirebaseService.serverTimestamp(),
-        });
-      }
-    }
-
+    return sessionRef.current;
+  };
+  const isCurrentOperation = token => token === sessionRef.current;
+  const finishOperation = token => {
+    if (!isCurrentOperation(token)) return;
+    busyRef.current = false;
     setIsBotLoading(false);
   };
 
+  useEffect(() => () => replyController.current?.abort(), []);
+  const handleStopReply = () => replyController.current?.abort();
+
+  const handleSendMessage = async (messageText) => {
+    const text = messageText?.trim();
+    if (!text || busyRef.current || isBotLoading) return;
+    const operation = beginOperation();
+    if (!operation) return;
+    const controller = new AbortController();
+    replyController.current = controller;
+    setCanStopReply(true);
+    setChatError(null);
+    setCurrentMessage('');
+    const userMessage = { id: crypto.randomUUID(), text, sender: 'user', createdAt: Date.now() };
+    const botId = crypto.randomUUID();
+    const history = [...messages, userMessage];
+    let replyText = '';
+    let generated = false;
+    let refreshTimer;
+    let userWrite = Promise.resolve(null);
+    const publish = (message) => {
+      if (!isCurrentOperation(operation)) return;
+      if (!useLocalMessages) pendingMessages.current.set(message.id, message);
+      setMessages(previous => previous.some(item => item.id === message.id)
+        ? previous.map(item => item.id === message.id ? message : item)
+        : [...previous, message]);
+    };
+    const persistReply = async (text) => {
+      const botMessage = { id: botId, text, sender: 'bot', createdAt: Date.now(), streaming: false };
+      publish(botMessage);
+      const writeError = await userWrite;
+      if (!isCurrentOperation(operation)) return;
+      if (writeError) throw writeError;
+      if (!useLocalMessages) await FirebaseService.firestore.addMessage(userId, { text, sender: 'bot', createdAt: FirebaseService.serverTimestamp() }, botId);
+    };
+    // Show the user's message immediately, including while Firestore is acknowledging it.
+    publish(userMessage);
+    try {
+      // Database acknowledgement runs alongside generation; it cannot delay the first token.
+      if (!useLocalMessages) userWrite = Promise.resolve().then(() => FirebaseService.firestore.addMessage(userId, { text, sender: 'user', createdAt: FirebaseService.serverTimestamp() }, userMessage.id)).then(() => null, error => error);
+      if (!isCurrentOperation(operation) || controller.signal.aborted) return;
+      const result = HUMAN_INTENT_REGEX.test(text)
+        ? { choices: [{ message: { content: `You can browse doctors and request an appointment here: ${doctorsPortalUrl}. Choose a doctor and submit the booking form; no appointment has been booked through this chat.` } }] }
+        : await OpenAIService.sendChatMessage(history, preferences, {
+          signal: controller.signal,
+          onText: (text) => {
+            if (!isCurrentOperation(operation) || controller.signal.aborted) return;
+            const first = !replyText;
+            replyText = text;
+            // Batch frequent tokens into small updates, without introducing a typing delay.
+            if (first) publish({ id: botId, text: replyText, sender: 'bot', createdAt: Date.now(), streaming: true });
+            else if (!refreshTimer) refreshTimer = setTimeout(() => {
+              refreshTimer = null;
+              publish({ id: botId, text: replyText, sender: 'bot', createdAt: Date.now(), streaming: true });
+            }, 32);
+          },
+        });
+      clearTimeout(refreshTimer);
+      if (!isCurrentOperation(operation)) return;
+      if (controller.signal.aborted) { if (replyText) await persistReply(replyText); return; }
+      replyText = result.choices?.[0]?.message?.content || replyText;
+      if (!replyText.trim()) throw new Error('Empty reply');
+      generated = true;
+      await persistReply(replyText);
+    } catch {
+      clearTimeout(refreshTimer);
+      if (isCurrentOperation(operation)) {
+        let saveFailed = generated;
+        if (replyText && !generated) {
+          try { await persistReply(replyText); }
+          catch { saveFailed = true; }
+        }
+        if (saveFailed) setChatError('The reply is visible but could not be saved. Check your connection.');
+        else if (!controller.signal.aborted) {
+          setChatError(replyText ? 'The response was interrupted. You can continue from here.' : 'Your message could not be completed. Check your connection and try again.');
+          if (!replyText) setCurrentMessage(draft => draft || text);
+        }
+      }
+    } finally {
+      clearTimeout(refreshTimer);
+      // Finish the in-flight user write before allowing a clear/new conversation to race it.
+      if (isCurrentOperation(operation)) await userWrite;
+      if (isCurrentOperation(operation)) { replyController.current = null; setCanStopReply(false); }
+      finishOperation(operation);
+    }
+  };
+
   const handleClearHistory = async () => {
-    if (!userId || !isFirebaseEnabled || isGuest) {
+    if (busyRef.current || isBotLoading) return false;
+    const operation = beginOperation();
+    if (!operation) return false;
+    try {
+      if (!useLocalMessages) await FirebaseService.firestore.clearMessages(userId);
+      if (!isCurrentOperation(operation)) return false;
+      pendingMessages.current.clear();
       setMessages([]);
       setConversationReady(false);
-      return;
-    }
-    try {
-      await FirebaseService.firestore.clearMessages(userId);
-      setMessages([]);
-    } catch (e) {
-      console.error("Error clearing history:", e);
-    }
-    setConversationReady(false);
+      return true;
+    } catch { if (isCurrentOperation(operation)) setChatError('Could not clear the conversation. Please try again.'); return false; }
+    finally { finishOperation(operation); }
   };
 
   const archiveCurrentConversation = () => {
-    if (isGuest || !messages?.length) return;
-    const firstUserMessage = messages.find((m) => m.sender === "user");
-    const fallbackTitle = firstUserMessage?.text?.slice(0, 40) || `Session ${new Date().toLocaleString()}`;
-    const newConversation = {
-      id: `conv-${Date.now()}`,
-      title: fallbackTitle,
-      messages: messages.slice(),
-      createdAt: Date.now(),
-    };
-    setConversations((prev) => [newConversation, ...prev]);
+    if (isGuest || activeArchiveId || !messages.length) return true;
+    const next = [{
+      id: crypto.randomUUID(),
+      title: messages.find(m => m.sender === 'user')?.text?.slice(0, 40) || `Session ${new Date().toLocaleString()}`,
+      messages: messages.slice(), createdAt: Date.now(),
+    }, ...conversations];
+    // Do not clear server history until its device archive has actually been saved.
+    try { localStorage.setItem(storageKey, JSON.stringify(next)); }
+    catch { setChatError('Could not archive this conversation. Free device storage before starting another.'); return false; }
+    setConversations(next);
+    return true;
   };
 
   const handleStartNewConversation = async () => {
-    archiveCurrentConversation();
-    await handleClearHistory();
-    setCurrentMessage("");
+    if (busyRef.current || isBotLoading) return;
+    setChatError(null);
+    if (activeArchiveId) {
+      // Preserve the continued archive and return to a fresh active server thread.
+      const operation = beginOperation();
+      if (!operation) return;
+      try { if (!isGuest && isFirebaseEnabled && userId) await FirebaseService.firestore.clearMessages(userId); }
+      catch { if (isCurrentOperation(operation)) setChatError('Could not start a new conversation. Please try again.'); return; }
+      finally { finishOperation(operation); }
+      if (!isCurrentOperation(operation)) return;
+      setActiveArchiveId(null);
+      setMessages([]);
+    } else {
+      if (!archiveCurrentConversation()) return;
+      if (!await handleClearHistory()) return;
+    }
+    setCurrentMessage('');
     setConversationReady(false);
   };
 
-  const handleOpenConversation = (conversationId) => {
-    const convo = conversations.find((c) => c.id === conversationId);
-    if (!convo) return;
-    setMessages(convo.messages || []);
-    setCurrentMessage("");
+  const handleOpenConversation = (id) => {
+    if (busyRef.current || isBotLoading) return;
+    const conversation = conversations.find(c => c.id === id);
+    if (!conversation) return;
+    if (!archiveCurrentConversation()) return;
+    pendingMessages.current.clear();
+    setActiveArchiveId(id);
+    setMessages(conversation.messages);
+    setCurrentMessage('');
     setConversationReady(true);
+    setChatError(null);
+  };
+  const handleRenameConversation = (id) => {
+    const conversation = conversations.find(c => c.id === id);
+    if (!conversation) return;
+    const title = window.prompt('Rename conversation', conversation.title)?.trim();
+    if (title) setConversations(prev => prev.map(c => c.id === id ? { ...c, title } : c));
+  };
+  const handleDeleteConversation = (id) => {
+    if (busyRef.current || isBotLoading) return;
+    setConversations(prev => prev.filter(c => c.id !== id));
+    if (id === activeArchiveId) { setActiveArchiveId(null); setMessages([]); setConversationReady(false); }
   };
 
-  const handleRenameConversation = (conversationId) => {
-    const convo = conversations.find((c) => c.id === conversationId);
-    if (!convo) return;
-    const nextTitle = window.prompt("Rename conversation", convo.title);
-    if (!nextTitle) return;
-    setConversations((prev) =>
-      prev.map((c) => (c.id === conversationId ? { ...c, title: nextTitle } : c))
-    );
-  };
-
-  const handleDeleteConversation = (conversationId) => {
-    setConversations((prev) => prev.filter((c) => c.id !== conversationId));
-  };
-
-  return {
-    messages,
-    currentMessage,
-    setCurrentMessage,
-    isBotLoading,
-    conversations,
-    conversationReady,
-    handleSendMessage,
-    handleClearHistory,
-    archiveCurrentConversation,
-    handleStartNewConversation,
-    handleOpenConversation,
-    handleRenameConversation,
-    handleDeleteConversation,
-    setMessages,
-    setConversationReady,
-    setIsBotLoading,
-  };
+  return { messages: loadedStorageKey === storageKey ? messages : [], setMessages, currentMessage, setCurrentMessage, isBotLoading, setIsBotLoading,
+    conversations: loadedStorageKey === storageKey ? conversations : [], conversationReady, setConversationReady,
+    chatError, canStopReply, handleStopReply, useLocalMessages, beginOperation, finishOperation, isCurrentOperation, activeArchiveId, handleSendMessage, handleClearHistory, archiveCurrentConversation,
+    handleStartNewConversation, handleOpenConversation, handleRenameConversation, handleDeleteConversation };
 };

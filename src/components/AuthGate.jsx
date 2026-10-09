@@ -1,3 +1,7 @@
+/*
+ * Optional Firebase auth gate: wait for the initial auth callback before redirecting. Not wired into App routes.
+ */
+
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { onAuthChange } from "../services/auth";

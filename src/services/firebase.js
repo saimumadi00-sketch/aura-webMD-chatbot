@@ -1,3 +1,7 @@
+/*
+ * Firebase adapter: initialize only with usable public config and expose real or fallback auth/persistence methods.
+ */
+
 // src/services/firebase.js
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
@@ -8,6 +12,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -20,6 +25,8 @@ import {
   deleteDoc,
   serverTimestamp,
   updateDoc,
+  query,
+  orderBy,
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -28,6 +35,7 @@ import { FIREBASE_CONFIG } from "../config/constants";
 // --- CONFIG & SAFETY GUARDS ---
 const firebaseConfig = FIREBASE_CONFIG;
 const isBrowser = typeof window !== "undefined";
+// Guard against empty/example config; this does not verify Firebase access or deployed rules.
 const hasValue = (value) =>
   typeof value === "string" &&
   value.trim() !== "" &&
@@ -69,12 +77,14 @@ const serverTimestampSafe = () =>
   isFirebaseEnabled ? serverTimestamp() : Date.now();
 
 // --- AUTH HELPERS ---
+// Match the adapter shape in both modes so callers need no separate implementation.
 const AuthService = isFirebaseEnabled
   ? {
       onAuthStateChanged: (callback) => onAuthStateChanged(authInstance, callback),
       createUser: (email, password) => createUserWithEmailAndPassword(authInstance, email, password),
       signIn: (email, password) => signInWithEmailAndPassword(authInstance, email, password),
       signOut: () => signOut(authInstance),
+      resetPassword: (email) => sendPasswordResetEmail(authInstance, email),
       updateProfile: (user, data) => updateProfile(user, data),
     }
   : {
@@ -85,6 +95,7 @@ const AuthService = isFirebaseEnabled
       signIn: async () => {
         throw new Error("Firebase is not configured. Provide VITE_FB_* values to enable auth.");
       },
+      resetPassword: async () => { throw new Error("Firebase is not configured."); },
       signOut: async () => undefined,
       updateProfile: async () => undefined,
     };
@@ -93,20 +104,27 @@ const AuthService = isFirebaseEnabled
 const FirestoreService = isFirebaseEnabled
   ? {
       serverTimestamp: serverTimestampSafe,
-      addMessage: (userId, message) =>
-        addDoc(collection(db, "users", userId, "messages"), message),
+      addMessage: async (userId, message, messageId) => {
+        if (!messageId) return addDoc(collection(db, "users", userId, "messages"), message);
+        // Stable IDs reconcile optimistic/streamed messages with subscription updates.
+        const ref = doc(db, "users", userId, "messages", messageId);
+        await setDoc(ref, message);
+        return ref;
+      },
+      // Delete each active message document; archived conversations remain in local storage.
       clearMessages: async (userId) => {
         const ref = collection(db, "users", userId, "messages");
         const snapshot = await getDocs(ref);
         await Promise.all(snapshot.docs.map((docSnap) => deleteDoc(docSnap.ref)));
       },
       updateMessage: (messageRef, data) => updateDoc(messageRef, data),
+      // Preferences live in a single settings document beneath the user-owned collection.
       savePreferences: (userId, prefs) =>
-        setDoc(doc(db, "users", userId, "preferences"), prefs),
-      subscribeToMessages: (userId, callback) =>
-        onSnapshot(collection(db, "users", userId, "messages"), callback),
-      subscribeToPreferences: (userId, callback) =>
-        onSnapshot(doc(db, "users", userId, "preferences"), callback),
+        setDoc(doc(db, "users", userId, "preferences", "settings"), prefs),
+      subscribeToMessages: (userId, callback, onError) =>
+        onSnapshot(query(collection(db, "users", userId, "messages"), orderBy("createdAt", "asc")), callback, onError),
+      subscribeToPreferences: (userId, callback, onError) =>
+        onSnapshot(doc(db, "users", userId, "preferences", "settings"), callback, onError),
     }
   : {
       serverTimestamp: serverTimestampSafe,

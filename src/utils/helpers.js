@@ -1,10 +1,15 @@
+/*
+ * Shared transformations and effects: parse image markers, format model history, build persona prompts, retry requests, and scroll.
+ */
+
 import { APP_CONFIG } from '../config/constants';
 import { SAFETY_MESSAGES } from '../config/constants';
 import { useEffect, useRef } from 'react';
 
+// Split the historical attachment serialization into image data, label, and clean visible text.
 export const parseImageFromMessage = (text = '') => {
   const imageMatch = text.match(/data:image[^;]+;base64,[^\s)]+/i);
-  const labelMatch = text.match(/Image uploaded: ([^.]*)/i);
+  const labelMatch = text.match(/Image uploaded: ([^\n]+)\.(?=\n|$)/i);
 
   const dataUrl = imageMatch?.[0] || null;
   let cleanText = text;
@@ -25,7 +30,8 @@ export const parseImageFromMessage = (text = '') => {
  */
 export const formatChatHistory = (messages = []) => {
   const out = [];
-  for (const msg of messages) {
+  // Keep recent context within the proxy payload limit, including base64 image attachments.
+  for (const msg of messages.slice(-(APP_CONFIG.MESSAGE_LIMIT || 50))) {
     const role = msg.sender === 'user' ? 'user' : 'assistant';
     const text = String(msg.text ?? '');
 
@@ -46,6 +52,7 @@ export const formatChatHistory = (messages = []) => {
       content: text,
     });
   }
+  while (out.length > 1 && new TextEncoder().encode(JSON.stringify(out)).length > 1800000) out.shift();
   return out;
 };
 
@@ -84,7 +91,7 @@ export const exponentialBackoffFetch = async (url, init = {}) => {
 
   while (attempt < max) {
     try {
-      const res = await fetch(url, init);
+      const res = await fetch(url, { ...init, signal: init.signal || AbortSignal.timeout(35000) });
       if (!res.ok) {
         const txt = await res.text();
         const err = new Error(`HTTP ${res.status}: ${txt}`);
@@ -97,8 +104,10 @@ export const exponentialBackoffFetch = async (url, init = {}) => {
       lastErr = err;
       attempt += 1;
       const status = err?.status;
+      // Retry transient network/server/rate-limit errors, but stop on other HTTP failures.
       const retryable = status === undefined || status >= 500 || status === 429;
       if (!retryable || attempt >= max) break;
+      // Double the wait after each failure, with an eight-second ceiling.
       const delay = Math.min(base * 2 ** (attempt - 1), 8000);
       await new Promise((r) => setTimeout(r, delay));
     }
@@ -111,8 +120,14 @@ export const exponentialBackoffFetch = async (url, init = {}) => {
  */
 export const useAutoScroll = (dependencies = []) => {
   const ref = useRef(null);
+  const previous = useRef([]);
   useEffect(() => {
-    ref.current?.scrollIntoView({ behavior: 'smooth' });
+    const changed = dependencies.some((value, index) => value !== previous.current[index]);
+    previous.current = dependencies;
+    const container = ref.current?.closest('.chat-active-messages, .chat-messages');
+    if (!container || !changed) return;
+    // Scroll only the message panel: scrollIntoView also moves the page and starter screen.
+    container.scrollTo({ top: container.scrollHeight, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   }, [dependencies]);
   return ref;
 };

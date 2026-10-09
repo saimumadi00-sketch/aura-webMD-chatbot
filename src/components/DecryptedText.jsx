@@ -1,3 +1,7 @@
+/*
+ * Decorative character-scramble animation, not cryptography. A separate hidden span preserves readable text for assistive tools.
+ */
+
 import React, { useEffect, useRef, useState } from "react";
 
 const wrapperStyle = {
@@ -39,6 +43,15 @@ const DecryptedText = ({
   const [revealedIndices, setRevealedIndices] = useState(new Set());
   const [hasAnimated, setHasAnimated] = useState(false);
   const containerRef = useRef(null);
+  const [reduceMotion, setReduceMotion] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+  useEffect(() => {
+    const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handleChange = () => setReduceMotion(preference.matches);
+    preference.addEventListener('change', handleChange);
+    return () => preference.removeEventListener('change', handleChange);
+  }, []);
 
   useEffect(() => {
     setDisplayText(text);
@@ -47,9 +60,12 @@ const DecryptedText = ({
   }, [text]);
 
   useEffect(() => {
+    // CSS cannot stop this JavaScript timer; show the final heading for reduced motion.
+    if (reduceMotion) return;
     let interval;
     let currentIteration = 0;
 
+    // Reveal order controls which character becomes final on each sequential tick.
     const getNextIndex = (revealedSet) => {
       const len = text.length;
       switch (revealDirection) {
@@ -73,10 +89,12 @@ const DecryptedText = ({
       }
     };
 
+    // Choose either a unique alphabet from the original text or the supplied scramble alphabet.
     const availableChars = useOriginalCharsOnly
       ? Array.from(new Set(text.split(""))).filter((char) => char !== " ")
       : characters.split("");
 
+    // Preserve spaces and already-revealed positions while randomizing the remaining characters.
     const shuffleText = (originalText, currentRevealed) =>
       originalText
         .split("")
@@ -86,6 +104,7 @@ const DecryptedText = ({
         })
         .join("");
 
+    // Sequential mode reveals one position per tick; random mode stops after maxIterations.
     if (isHovering) {
       setIsScrambling(true);
       interval = setInterval(() => {
@@ -131,11 +150,14 @@ const DecryptedText = ({
     characters,
     useOriginalCharsOnly,
     isScrambling,
+    reduceMotion,
   ]);
 
   useEffect(() => {
+    if (reduceMotion) return;
     if (animateOn !== "view" && animateOn !== "both") return;
 
+    // View-triggered animations run once until a changed text prop resets hasAnimated.
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -154,7 +176,7 @@ const DecryptedText = ({
     return () => {
       if (ref) observer.unobserve(ref);
     };
-  }, [animateOn, hasAnimated]);
+  }, [animateOn, hasAnimated, reduceMotion]);
 
   const interactiveProps =
     animateOn === "hover" || animateOn === "both"
@@ -177,8 +199,9 @@ const DecryptedText = ({
     >
       <span style={srOnlyStyle}>{text}</span>
       <span aria-hidden="true">
-        {displayText.split("").map((char, index) => {
+        {(reduceMotion ? text : displayText).split("").map((char, index) => {
           const isFinal =
+            reduceMotion ||
             revealedIndices.has(index) ||
             (!isScrambling && (hasAnimated || animateOn === "view")) ||
             (!isHovering && animateOn === "hover");

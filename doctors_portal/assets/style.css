@@ -1,266 +1,72 @@
-:root {
-  --primary: #4f46e5;
-  --primary-soft: #eef2ff;
-  --accent: #ec4899;
-  --bg: #020617;
-  --card-bg: rgba(15, 23, 42, 0.9);
-  --border: rgba(148, 163, 184, 0.45);
-  --text-main: #e5e7eb;
-  --text-muted: #9ca3af;
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-/* Shared layout */
-
-body.page-doctors,
-body.page-book {
-  margin: 0;
-  min-height: 100vh;
-  font-family: "Poppins", system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
-  color: var(--text-main);
-  background: radial-gradient(circle at top, #0b1120 0, #020617 55%, #020617 100%);
-}
-
-/* Animated gradient bar at the top */
-.gradient-bar {
-  height: 4px;
-  background: linear-gradient(120deg, var(--primary), var(--accent), #22c55e);
-  background-size: 200% 200%;
-  animation: gradientShift 8s ease infinite;
-}
-
-@keyframes gradientShift {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-.main-navbar {
-  background: rgba(15, 23, 42, 0.95) !important;
-  backdrop-filter: blur(18px);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.3);
-}
-
-.navbar-brand {
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-
-.main-shell {
-  padding-bottom: 40px;
-}
-
-/* Hero section on Find a Doctor page */
-
-.hero {
-  text-align: center;
-  max-width: 720px;
-  margin: 0 auto 3rem;
-}
-
-.hero-eyebrow {
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--accent);
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
-.hero-title {
-  font-size: clamp(2.2rem, 4vw, 3rem);
-  font-weight: 700;
-  margin-bottom: 0.75rem;
-}
-
-.hero-subtitle {
-  color: var(--text-muted);
-  font-size: 0.98rem;
-}
-
-/* Doctor cards */
-
-.doctor-card {
-  position: relative;
-  overflow: hidden;
-  background: var(--card-bg);
-  border-radius: 18px;
-  border: 1px solid var(--border);
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.8);
-  transition: transform 0.25s ease, box-shadow 0.25s ease,
-    border-color 0.25s ease, background 0.25s ease;
-}
-
-.doctor-card::before {
-  content: "";
-  position: absolute;
-  inset: -40%;
-  background: radial-gradient(circle at top, var(--accent) 0, transparent 55%);
-  opacity: 0;
-  transition: opacity 0.35s ease, transform 0.35s ease;
-  transform: translate3d(0, 10px, 0);
-}
-
-.doctor-card:hover {
-  transform: translateY(-6px) scale(1.01);
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.95);
-  border-color: rgba(236, 72, 153, 0.7);
-  background: rgba(15, 23, 42, 0.98);
-}
-
-.doctor-card:hover::before {
-  opacity: 0.14;
-  transform: translate3d(0, 0, 0);
-}
-
-.doctor-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.12rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  background: rgba(79, 70, 229, 0.16);
-  color: var(--primary-soft);
-}
-
-.doctor-location {
-  font-size: 0.86rem;
-  color: var(--text-muted);
-}
-
-/* Glow button */
-
-.btn-glow {
-  position: relative;
-  border-radius: 999px;
-  border: none;
-  background: linear-gradient(120deg, var(--primary), var(--accent));
-  color: white;
-  padding: 0.45rem 1.2rem;
-  font-size: 0.85rem;
-  font-weight: 500;
-  box-shadow: 0 14px 35px rgba(79, 70, 229, 0.6);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.btn-glow:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 18px 40px rgba(79, 70, 229, 0.75);
-  color: white;
-}
-
-.btn-glow:active {
-  transform: translateY(0);
-  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.55);
-}
-
-/* Fade-in animation for cards */
-
-.fade-in-up {
-  opacity: 0;
-  transform: translateY(18px);
-  animation: fadeInUp 0.6s ease forwards;
-}
-
-.fade-in-up:nth-child(2) {
-  animation-delay: 0.05s;
-}
-.fade-in-up:nth-child(3) {
-  animation-delay: 0.1s;
-}
-.fade-in-up:nth-child(4) {
-  animation-delay: 0.15s;
-}
-.fade-in-up:nth-child(5) {
-  animation-delay: 0.2s;
-}
-.fade-in-up:nth-child(6) {
-  animation-delay: 0.25s;
-}
-
-@keyframes fadeInUp {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Empty state */
-
-.empty-state {
-  background: rgba(15, 23, 42, 0.92);
-  border-radius: 16px;
-  border: 1px dashed rgba(148, 163, 184, 0.6);
-  padding: 2.5rem 1.5rem;
-  text-align: center;
-}
-
-.empty-state h2 {
-  font-size: 1.3rem;
-  margin-bottom: 0.5rem;
-}
-
-.empty-state p {
-  color: var(--text-muted);
-  margin: 0;
-}
-
-/* Booking page styling */
-
-.booking-shell {
-  background: var(--card-bg);
-  border-radius: 22px;
-  border: 1px solid var(--border);
-  padding: 2rem 2.25rem;
-  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.95);
-}
-
-.booking-shell h1 {
-  font-size: 1.9rem;
-}
-
-.form-control,
-.form-select {
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(148, 163, 184, 0.6);
-  color: var(--text-main);
-}
-
-.form-control:focus,
-.form-select:focus {
-  background: rgba(15, 23, 42, 0.95);
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.6);
-}
-
-label.form-label {
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-
-.alert-soft-success {
-  background: rgba(22, 163, 74, 0.1);
-  border: 1px solid rgba(22, 163, 74, 0.4);
-  color: #bbf7d0;
-}
-
-.alert-soft-error {
-  background: rgba(248, 113, 113, 0.08);
-  border: 1px solid rgba(248, 113, 113, 0.5);
-  color: #fecaca;
+/* Portal and admin pages use the same Aura tokens as the React frontend. */
+@import url('./tokens.css');
+body { margin: 0; min-height: 100dvh; font-family: var(--aura-font); color: var(--aura-text); background: var(--aura-bg); }
+.container { max-width: 1120px; }
+.gradient-bar { display: none; }
+.main-navbar { padding: 20px 0; background: var(--aura-panel); border-bottom: 1px solid var(--aura-border); }
+.main-navbar > .container { gap: 16px; }
+.navbar-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--aura-text); font-size: 23px; font-weight: 750; letter-spacing: -0.04em; }
+.navbar-brand:hover { color: var(--aura-highlight); }
+.portal-brand-icon { width: 26px; height: 26px; flex-shrink: 0; }
+.portal-brand-mark { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--aura-brand); color: white; font-size: 20px; }
+.portal-section { font-size: 12px; letter-spacing: 0; font-weight: 500; color: var(--aura-muted); border-left: 1px solid var(--aura-border); padding-left: 12px; }
+.portal-nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+[data-theme-toggle] { width: 104px; flex-shrink: 0; }
+.main-shell { padding-bottom: 40px; }
+.hero { max-width: 700px; padding: 24px 0 12px; }
+.hero-eyebrow { font-size: 11px; letter-spacing: 0.12em; font-weight: 700; color: var(--aura-highlight); margin-bottom: 16px; text-transform: uppercase; }
+.hero-title { font-size: clamp(30px, 4vw, 46px); font-weight: 700; letter-spacing: -0.045em; line-height: 1.15; margin-bottom: 18px; }
+.hero-subtitle { color: var(--aura-muted); font-size: 16px; line-height: 1.8; max-width: 600px; }
+h1, h2, h3, h5 { letter-spacing: -0.025em; }
+.card, .doctor-card, .booking-shell, .empty-state { background: var(--aura-panel); color: var(--aura-text); border: 1px solid var(--aura-border); border-radius: 14px; box-shadow: none; }
+.doctor-card .card-body { padding: 24px; }
+.doctor-card .card-body > .d-flex { flex-direction: column; gap: 12px; }
+.doctor-card .card-title { font-size: 20px; font-weight: 650; overflow-wrap: anywhere; }
+.doctor-card .card-footer { padding: 0 24px 24px; }
+.doctor-card .card-footer .btn { width: 100%; }
+.doctor-card small { color: var(--aura-muted); }
+.doctor-badge { display: inline-flex; padding: 5px 10px; background: var(--aura-tint); color: var(--aura-highlight); border-radius: 6px; font-size: 12px; }
+.doctor-location { color: var(--aura-muted); font-size: 14px; line-height: 1.7; }
+.btn { border-radius: 10px; padding: 10px 16px; font-size: 14px; font-weight: 600; }
+.btn-sm { padding: 8px 12px; font-size: 13px; }
+.btn-glow, .btn-primary, .btn-success { background: var(--aura-brand); border: 1px solid var(--aura-brand); color: white; box-shadow: none; }
+.btn-glow:hover, .btn-primary:hover, .btn-success:hover { background: var(--aura-brand-hover); border-color: var(--aura-brand-hover); color: white; }
+.btn-outline-light, .btn-secondary, .btn-outline-secondary { background: var(--aura-panel); border-color: var(--aura-border); color: var(--aura-text); }
+.btn-outline-light:hover, .btn-secondary:hover, .btn-outline-secondary:hover { background: var(--aura-soft); border-color: var(--aura-border); color: var(--aura-text); }
+.btn-danger { background: var(--aura-panel); color: var(--aura-danger); border-color: var(--aura-border); }
+.empty-state { padding: 40px 24px; text-align: center; }
+.empty-state h2 { font-size: 22px; }
+.empty-state p { color: var(--aura-muted); margin-bottom: 0; }
+.booking-shell { padding: 32px; }
+.booking-shell h1 { font-size: 28px; font-weight: 700; }
+.form-control, .form-select { background: var(--aura-soft); border-color: var(--aura-border); color: var(--aura-text); border-radius: 10px; padding: 11px 14px; font-size: 16px; }
+.form-control::placeholder { color: var(--aura-muted); }
+.form-control:focus, .form-select:focus { background: var(--aura-panel); color: var(--aura-text); border-color: var(--aura-brand); box-shadow: 0 0 0 3px var(--aura-tint); }
+.form-control::file-selector-button { background: var(--aura-panel); color: var(--aura-text); }
+.form-label { font-size: 13px; font-weight: 600; }
+.form-text, .text-muted, .navbar-text { color: var(--aura-muted) !important; }
+.alert { border-radius: 10px; }
+.alert-soft-success, .alert-success { background: var(--aura-panel); border: 1px solid var(--aura-success); color: var(--aura-success); }
+.alert-soft-error, .alert-danger { background: var(--aura-panel); border: 1px solid var(--aura-danger); color: var(--aura-danger); }
+.portal-admin .admin-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+.portal-admin .admin-nav a { color: var(--aura-muted); text-decoration: none; font-size: 14px; }
+.portal-admin .admin-nav a:hover { color: var(--aura-highlight); }
+.portal-admin .admin-nav form { margin: 0; }
+.portal-admin .table { --bs-table-bg: var(--aura-panel); --bs-table-color: var(--aura-text); --bs-table-border-color: var(--aura-border); --bs-table-striped-bg: var(--aura-soft); --bs-table-striped-color: var(--aura-text); vertical-align: middle; }
+.portal-admin .table th, .portal-admin .table td { padding: 14px; }
+.portal-admin .text-bg-primary, .portal-admin .text-bg-success, .portal-admin .text-bg-warning { background: var(--aura-panel) !important; color: var(--aura-text) !important; }
+.portal-admin .display-6 { color: var(--aura-highlight); }
+.portal-login { display: grid; place-items: center; min-height: calc(100dvh - 90px); padding: 32px 20px; }
+.portal-login .booking-shell { width: min(440px, 100%); }
+:is(a, button, input, select, textarea):focus-visible { outline: 2px solid var(--aura-highlight); outline-offset: 3px; }
+@media (max-width: 600px) {
+  .main-navbar { padding: 16px 8px; }
+  .main-navbar .navbar-brand { margin: 0; }
+  .main-navbar > .container { flex-wrap: wrap; }
+  .portal-section { font-size: 11px; }
+  .booking-shell { padding: 24px 20px; }
+  .booking-shell form > .d-flex { flex-wrap: wrap; gap: 12px; }
+  .hero { padding-top: 0; }
+  .portal-admin .admin-nav { width: 100%; gap: 12px; }
+  .portal-admin .admin-nav .navbar-text { display: none; }
 }

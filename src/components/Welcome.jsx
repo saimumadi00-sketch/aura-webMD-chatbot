@@ -1,21 +1,32 @@
-﻿import React, { useState } from "react";
-import { ArrowLeft, Moon, Sun, Facebook, Linkedin, Mail } from "lucide-react";
+/*
+ * Combined sign-in/sign-up screen. Form drafts are local; account and guest actions come from the parent.
+ */
+
+import React, { useState } from "react";
+import { ArrowLeft, Moon, Sun } from "lucide-react";
 import "../styles/welcome.css";
 
-export default function Welcome({ onGuest, onLogin, onRegister, theme = "dark", onToggleTheme, onHome, error }) {
+export default function Welcome({ onGuest, onLogin, onRegister, theme = "dark", onToggleTheme, onHome, onBack, error, notice, onResetPassword }) {
+  // The selected form changes without losing either draft or navigating away.
   const [isRightPanel, setIsRightPanel] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const isDark = theme !== "light";
   const [signIn, setSignIn] = useState({ email: "", password: "" });
   const [signUp, setSignUp] = useState({ name: "", email: "", password: "" });
 
-  const handleSignInSubmit = (e) => {
+  // Form submission forwards credentials to the parent and avoids native page navigation.
+  const handleSignInSubmit = async (e) => {
     e.preventDefault();
-    onLogin?.(signIn.email, signIn.password);
+    if (isLoading) return;
+    setIsLoading(true);
+    try { await onLogin?.(signIn.email, signIn.password); } finally { setIsLoading(false); }
   };
 
-  const handleSignUpSubmit = (e) => {
+  const handleSignUpSubmit = async (e) => {
     e.preventDefault();
-    onRegister?.(signUp.email, signUp.password, signUp.name);
+    if (isLoading) return;
+    setIsLoading(true);
+    try { await onRegister?.(signUp.email, signUp.password, signUp.name); } finally { setIsLoading(false); }
   };
 
   const handleGuest = () => onGuest?.();
@@ -26,22 +37,15 @@ export default function Welcome({ onGuest, onLogin, onRegister, theme = "dark", 
     }
   };
 
-  const handleGoRegister = () => setIsRightPanel(true);
+  const handleGoRegister = () => setIsRightPanel(value => !value);
 
   return (
     <div className={`welcome-page ${isDark ? "dark-mode" : ""}`}>
-      <div className="welcome-bg-layer">
-        <div className="welcome-grid" />
-        <div className="welcome-orb orb-1" />
-        <div className="welcome-orb orb-2" />
-        <div className="welcome-orb orb-3" />
-      </div>
-
       <button
         id="backBtn"
         className="nav-btn"
         title="Go Back"
-        onClick={onHome ? onHome : handleBack}
+        onClick={onBack || onHome || handleBack}
         type="button"
         aria-label="Go back"
       >
@@ -68,117 +72,67 @@ export default function Welcome({ onGuest, onLogin, onRegister, theme = "dark", 
         className="register-cta"
         onClick={handleGoRegister}
       >
-        New here? Create an account
+        {isRightPanel ? 'Already a member? Sign in' : 'New here? Create an account'}
       </button>
 
       <div
         className={`welcome-container ${isRightPanel ? "right-panel-active" : ""}`}
         id="container"
       >
-        <div className="form-container sign-up-container">
+        <div className="form-container sign-up-container" inert={!isRightPanel}>
           <form onSubmit={handleSignUpSubmit}>
             <h1>Create Account</h1>
-            <div className="social-container">
-              <a aria-label="Sign up with Facebook" href="#">
-                <Facebook size={18} />
-              </a>
-              <a aria-label="Sign up with Mail" href="#">
-                <Mail size={18} />
-              </a>
-              <a aria-label="Sign up with LinkedIn" href="#">
-                <Linkedin size={18} />
-              </a>
-            </div>
-            <span>or use your email for registration</span>
+            <span>Sign up with your email</span>
             <input
-              type="text"
+              type="text" required autoComplete="name" aria-label="Name"
               placeholder="Name"
               value={signUp.name}
               onChange={(e) => setSignUp({ ...signUp, name: e.target.value })}
             />
             <input
-              type="email"
+              type="email" required autoComplete="email" aria-label="Email"
               placeholder="Email"
               value={signUp.email}
               onChange={(e) => setSignUp({ ...signUp, email: e.target.value })}
             />
             <input
-              type="password"
+              type="password" required minLength={6} autoComplete="new-password" aria-label="Password"
               placeholder="Password"
               value={signUp.password}
               onChange={(e) => setSignUp({ ...signUp, password: e.target.value })}
             />
             {error && <p className="form-error">{error}</p>}
-            <button type="submit">Sign Up</button>
+            <button type="submit" disabled={isLoading}>Sign Up</button>
           </form>
         </div>
 
-        <div className="form-container sign-in-container">
+        <div className="form-container sign-in-container" inert={isRightPanel}>
           <form onSubmit={handleSignInSubmit}>
             <h1>Sign in</h1>
-            <div className="social-container">
-              <a aria-label="Sign in with Facebook" href="#">
-                <Facebook size={18} />
-              </a>
-              <a aria-label="Sign in with Mail" href="#">
-                <Mail size={18} />
-              </a>
-              <a aria-label="Sign in with LinkedIn" href="#">
-                <Linkedin size={18} />
-              </a>
-            </div>
-            <span>or use your account</span>
+            <span>Continue with your email</span>
             <input
-              type="email"
+              type="email" required autoComplete="email" aria-label="Email"
               placeholder="Email"
               value={signIn.email}
               onChange={(e) => setSignIn({ ...signIn, email: e.target.value })}
             />
             <input
-              type="password"
+              type="password" required autoComplete="current-password" aria-label="Password"
               placeholder="Password"
               value={signIn.password}
               onChange={(e) => setSignIn({ ...signIn, password: e.target.value })}
             />
-            <a href="#">Forgot your password?</a>
+            <button className="welcome-reset" type="button" disabled={isLoading} onClick={async () => { setIsLoading(true); try { await onResetPassword(signIn.email); } finally { setIsLoading(false); } }}>Forgot your password?</button>
+            {notice && <p role="status">{notice}</p>}
             {error && <p className="form-error">{error}</p>}
-            <button type="submit">Sign In</button>
-            <button type="button" className="guest-btn" onClick={handleGuest}>
-              Guest Log In
+            <button type="submit" disabled={isLoading}>Sign In</button>
+            <button type="button" disabled={isLoading} className="guest-btn" onClick={handleGuest}>
+              Continue as guest
             </button>
           </form>
         </div>
 
-        <div className="overlay-container">
-          <div className="overlay">
-            <div className="overlay-panel overlay-left">
-              <h1>Welcome Back!</h1>
-              <p>To keep connected with us please login with your personal info</p>
-              <button
-                className="ghost"
-                id="signIn"
-                type="button"
-                onClick={() => setIsRightPanel(false)}
-              >
-                Sign In
-              </button>
-            </div>
-            <div className="overlay-panel overlay-right">
-              <h1>Hello, Friend!</h1>
-              <p>Enter your personal details and start journey with us</p>
-              <button
-                className="ghost"
-                id="signUp"
-                type="button"
-                onClick={() => setIsRightPanel(true)}
-              >
-                Sign Up
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
 }
-

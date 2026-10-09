@@ -1,3 +1,8 @@
+/*
+ * Shared public configuration: Firebase browser identifiers, server-relative AI URL, model mappings, retry settings, and safety text.
+ */
+
+// VITE_ values are bundled into browser JavaScript and must contain no private secrets.
 export const FIREBASE_CONFIG = {
   apiKey: import.meta.env.VITE_FB_API_KEY,
   authDomain: import.meta.env.VITE_FB_AUTH_DOMAIN,

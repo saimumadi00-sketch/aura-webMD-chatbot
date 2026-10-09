@@ -1,4 +1,8 @@
-﻿import React, { useState } from "react";
+/*
+ * Pricing preview: shared controls update all cards; only the free plan is available.
+ */
+
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Check,
@@ -12,12 +16,15 @@ import {
   Users,
 } from "lucide-react";
 import "../styles/billing.css";
+import ThemeToggle from './ThemeToggle';
+import { getPlanPrice } from '../utils/plan-price';
 
-export default function Billing({ onBack, onSelectPlan, user, isGuest }) {
+export default function Billing({ onBack, onSelectPlan, user, isGuest, theme, onToggleTheme }) {
   const [billingCycle, setBillingCycle] = useState("yearly");
   const [planType, setPlanType] = useState("personal");
   const navigate = useNavigate();
 
+  // Embedded billing uses the parent view action; route-based billing falls back to /chat.
   const handleBack = () => {
     if (typeof onBack === "function") {
       onBack();
@@ -30,12 +37,14 @@ export default function Billing({ onBack, onSelectPlan, user, isGuest }) {
     }
   };
 
+  // Selection describes intent only: this component does not charge or activate a subscription.
   const handleSelect = (planId) => {
     if (typeof onSelectPlan === "function") {
       onSelectPlan(planId, { planType, billingCycle, user, isGuest });
     }
   };
 
+  // Static display data: IDs go to the parent and prices share the selected billing cycle.
   const plans = {
     personal: [
       {
@@ -48,11 +57,11 @@ export default function Billing({ onBack, onSelectPlan, user, isGuest }) {
         buttonStyle: "outline",
         highlight: false,
         features: [
-          "Daily mood check-ins & tracking",
-          "Basic mindfulness exercises",
-          "5-minute daily guided meditation",
-          "Personalized daily affirmations",
-          "Access to public community forums",
+          "Supportive AI conversations",
+          "Guest chat without an account",
+          "Adjustable tone and response style",
+          "Conversation archives on this device",
+          "PDF conversation summaries",
         ],
       },
       {
@@ -151,121 +160,55 @@ export default function Billing({ onBack, onSelectPlan, user, isGuest }) {
   };
 
   const currentPlans = plans[planType];
-  const title = planType === "personal" ? "Find peace of mind with Aura" : "Empower your practice with Aura";
+
+  const currency = value => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
 
   return (
     <div className="billing-page">
       <div className="billing-shell">
         <header className="billing-header">
-          <button type="button" className="billing-back" onClick={handleBack} aria-label="Back to chat">
-            <ArrowLeft size={22} />
-          </button>
+          <div className="billing-topbar">
+            <button type="button" className="billing-back" onClick={handleBack}><ArrowLeft size={18} aria-hidden="true" /><span>Back</span></button>
+            <a className="billing-brand" href="#/">Aura</a>
+            <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />
+          </div>
           <div className="billing-heading">
-            <h1 className="billing-title">{title}</h1>
-            <div className="billing-toggle">
-              <button
-                type="button"
-                className={`toggle-btn ${planType === "personal" ? "active" : ""}`}
-                onClick={() => setPlanType("personal")}
-              >
-                Personal
-              </button>
-              <button
-                type="button"
-                className={`toggle-btn ${planType === "clinical" ? "active" : ""}`}
-                onClick={() => setPlanType("clinical")}
-              >
-                Clinics & Teams
-              </button>
-              <span className={`toggle-highlight ${planType}`} />
-            </div>
+            <p className="billing-eyebrow">AURA PLANS</p>
+            <h1 className="billing-title">Support at your own pace.</h1>
+            <p>Start with free chat. Explore what's planned for individuals and teams.</p>
           </div>
         </header>
 
-        <section className="plan-grid">
-          {currentPlans.map((plan, index) => (
-            <article
-              key={`${planType}-${plan.id}`}
-              className={`plan-card ${plan.highlight ? "plan-card--highlight" : ""}`}
-            >
-              {plan.highlight && <div className="plan-badge">Most Popular</div>}
-
-              <div className="plan-top">
-                <div className="plan-icon">
-                  <plan.icon size={28} strokeWidth={1.5} />
-                </div>
-                <div>
-                  <h2 className="plan-name">{plan.name}</h2>
-                  <p className="plan-tagline">{plan.tagline}</p>
-                </div>
-                {index === 1 && (
-                  <div className="cycle-toggle">
-                    <button
-                      type="button"
-                      className={`cycle-btn ${billingCycle === "monthly" ? "active" : ""}`}
-                      onClick={() => setBillingCycle("monthly")}
-                    >
-                      Monthly
-                    </button>
-                    <button
-                      type="button"
-                      className={`cycle-btn ${billingCycle === "yearly" ? "active" : ""}`}
-                      onClick={() => setBillingCycle("yearly")}
-                    >
-                      Yearly <span className="cycle-save">· Save 20%</span>
-                    </button>
-                  </div>
-                )}
+        <div className="billing-controls">
+          <fieldset><legend>Plan type</legend><div className="billing-toggle">
+            <button type="button" className={`toggle-btn ${planType === 'personal' ? 'active' : ''}`} aria-pressed={planType === 'personal'} onClick={() => setPlanType('personal')}>Personal</button>
+            <button type="button" className={`toggle-btn ${planType === 'clinical' ? 'active' : ''}`} aria-pressed={planType === 'clinical'} onClick={() => setPlanType('clinical')}>Clinics &amp; Teams</button>
+          </div></fieldset>
+          <fieldset><legend>Preview billing frequency</legend><div className="cycle-toggle">
+            <button type="button" className={`cycle-btn ${billingCycle === 'monthly' ? 'active' : ''}`} aria-pressed={billingCycle === 'monthly'} onClick={() => setBillingCycle('monthly')}>Monthly</button>
+            <button type="button" className={`cycle-btn ${billingCycle === 'yearly' ? 'active' : ''}`} aria-pressed={billingCycle === 'yearly'} onClick={() => setBillingCycle('yearly')}>Yearly</button>
+          </div></fieldset>
+        </div>
+        <p role="status" className="billing-availability">Free chat is available now. Paid plans and their listed features are previews; purchasing is not available.</p>
+        <section className="plan-grid" aria-label={planType === 'personal' ? 'Personal plans' : 'Clinic and team plans'}>
+          {currentPlans.map(plan => {
+            const free = plan.id === 'seeker';
+            const pricing = getPlanPrice(plan.price, billingCycle);
+            return <article key={plan.id} className={`plan-card ${free ? 'plan-card--available' : ''}`}>
+              <div className="plan-status"><span className={free ? 'plan-badge available' : 'plan-badge'}>{free ? 'Available now' : 'Planned'}</span></div>
+              <div className="plan-top"><div className="plan-icon"><plan.icon size={24} strokeWidth={1.7} aria-hidden="true" /></div><div><h2 className="plan-name">{plan.name}</h2><p className="plan-tagline">{plan.tagline}</p></div></div>
+              <div className="plan-price-area">
+                <div className="plan-price"><span className="price-value">{typeof pricing.amount === 'number' ? currency(pricing.amount) : pricing.amount}</span>{typeof pricing.amount === 'number' && !free && <span className="price-suffix">/ month</span>}</div>
+                <p className="plan-charge">{free ? 'No payment required' : pricing.total !== null ? `${currency(pricing.total)} billed annually` : typeof pricing.amount === 'number' ? 'Billed monthly' : 'Pricing to be confirmed'}</p>
+                <div className="plan-savings">{pricing.savings > 0 && <span>Save {pricing.savings}% compared with monthly</span>}</div>
               </div>
-
-              <div className="plan-price">
-                {typeof plan.price.monthly === "number" ? (
-                  <>
-                    {plan.price.monthly > 0 && <span className="price-prefix">From</span>}
-                    <span className="price-value">
-                      ${billingCycle === "yearly" ? plan.price.yearly : plan.price.monthly}
-                    </span>
-                    {plan.price.monthly > 0 && (
-                      <span className="price-suffix">
-                        / month {billingCycle === "yearly" ? "billed annually" : "billed monthly"}
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <span className="price-value">{plan.price.monthly}</span>
-                )}
-              </div>
-
-              <button
-                type="button"
-                className={`plan-cta ${plan.buttonStyle === "white" ? "plan-cta--solid" : "plan-cta--ghost"}`}
-                onClick={() => handleSelect(plan.id)}
-              >
-                {plan.buttonText}
-              </button>
-
+              <button type="button" className="plan-cta" disabled={!free} onClick={() => handleSelect(plan.id)}>{free ? 'Chat with Aura free' : 'Not available yet'}</button>
               <div className="plan-divider" />
-
-              <div className="plan-features">
-                {index > 0 && (
-                  <p className="plan-subtitle">
-                    Everything in {currentPlans[index - 1].name}, plus:
-                  </p>
-                )}
-                {plan.features.map((feature, i) => (
-                  <FeatureItem key={i} data={feature} />
-                ))}
-              </div>
-            </article>
-          ))}
+              <div className="plan-features"><h3 className="plan-subtitle">{free ? 'Included with free chat' : 'Planned features'}</h3>{plan.features.map((feature, i) => <FeatureItem key={i} data={feature} />)}</div>
+            </article>;
+          })}
         </section>
-
-        <footer className="billing-footer">
-          <a href="#" className="billing-note">
-            *Therapy services provided by partner clinics.
-          </a>{" "}
-          Prices shown don&apos;t include applicable tax.
-        </footer>
+        <footer className="billing-footer">Preview prices are in USD and exclude applicable taxes. No payment is taken on this page.</footer>
       </div>
     </div>
   );

@@ -1,10 +1,15 @@
+/*
+ * Responses convenience adapter. Despite the historical filename, no browser SDK or private key is used.
+ */
+
 import { OPENAI_CONFIG } from '../config/constants';
 import { exponentialBackoffFetch } from '../utils/helpers';
 
+// Keep the Responses helper API while routing all requests through our server.
 export const createResponse = async ({
   model = OPENAI_CONFIG.MODELS.balanced,
   input,
-  store = true,
+  store = false,
 } = {}) => {
   try {
     return await exponentialBackoffFetch('/api/openai/responses', {

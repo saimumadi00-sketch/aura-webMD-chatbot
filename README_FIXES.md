@@ -1,3 +1,7 @@
+# Historical implementation notes
+
+See [README.md](README.md) for current setup and behavior. Earlier descriptions below may describe superseded code.
+
 # Aura Project
 
 AI companion built with Vite + React. Aura chats through OpenAI, syncs conversations to Firebase when configured, and falls back to a safe guest/local mode when keys are missing.

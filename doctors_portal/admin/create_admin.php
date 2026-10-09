@@ -1,4 +1,5 @@
 <?php
+/* Server-shell provisioning: reject web requests before database access and store a password hash for the requested username. */
 // Provisioning is restricted to a shell on the server, including the first admin.
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
@@ -19,6 +20,7 @@ if ($stmt->get_result()->fetch_assoc()) {
     exit(1);
 }
 $stmt->close();
+// Store only the hash; the login page uses password_verify against this value.
 $hash = password_hash($password, PASSWORD_DEFAULT);
 $stmt = $conn->prepare('INSERT INTO admins (username, password_hash) VALUES (?, ?)');
 $stmt->bind_param('ss', $username, $hash);

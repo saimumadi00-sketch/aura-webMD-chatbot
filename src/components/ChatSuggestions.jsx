@@ -1,3 +1,7 @@
+/*
+ * Optional animated suggestion grid. Clicking a sample sends its text to the parent; it performs no API calls.
+ */
+
 import React from 'react';
 import { motion } from 'framer-motion';
 

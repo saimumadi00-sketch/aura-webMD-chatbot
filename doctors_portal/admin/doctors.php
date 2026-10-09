@@ -1,12 +1,15 @@
 <?php
+/* Admin doctor directory: show saved doctor records and links to add, edit, or delete them. */
 require_once "_header.php";
 
+// The list is a database snapshot; add/edit/delete links invoke separate handlers.
 $result = $conn->query("SELECT * FROM doctors ORDER BY name");
 ?>
 <h1 class="mb-4">Doctors</h1>
 
 <a href="doctor_add.php" class="btn btn-primary mb-3">Add Doctor</a>
 
+<div class="table-responsive">
 <table class="table table-striped">
     <thead>
         <tr>
@@ -30,11 +33,11 @@ $result = $conn->query("SELECT * FROM doctors ORDER BY name");
                 <td><?php echo htmlspecialchars($row['fee']); ?></td>
                 <td>
                     <a class="btn btn-sm btn-secondary" href="doctor_edit.php?id=<?php echo $row['id']; ?>">Edit</a>
-                    <a class="btn btn-sm btn-danger"
-                       href="doctor_delete.php?id=<?php echo $row['id']; ?>"
-                       onclick="return confirm('Delete this doctor? This will also delete their appointments.');">
-                        Delete
-                    </a>
+                    <form method="post" action="doctor_delete.php" class="d-inline" onsubmit="return confirm('Delete this doctor?');">
+                        <?php echo csrf_field(); ?>
+                        <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
+                        <button class="btn btn-sm btn-danger">Delete</button>
+                    </form>
                 </td>
             </tr>
         <?php endwhile; ?>
@@ -43,5 +46,6 @@ $result = $conn->query("SELECT * FROM doctors ORDER BY name");
     <?php endif; ?>
     </tbody>
 </table>
+</div>
 
 <?php require_once "_footer.php"; ?>

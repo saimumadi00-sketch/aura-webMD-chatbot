@@ -46,6 +46,7 @@ def coerce_text(value: Any) -> Optional[str]:
 
 
 def first_nonempty(row: dict, keys: Iterable[str]) -> Optional[str]:
+    # Dataset variants use different column names; prefer the first usable text field.
     for key in keys:
         if key in row:
             text = coerce_text(row[key])
@@ -55,6 +56,7 @@ def first_nonempty(row: dict, keys: Iterable[str]) -> Optional[str]:
 
 
 def build_messages(user: str, assistant: str, system_prompt: str) -> dict:
+    # One training example contains a system instruction and one user/assistant exchange.
     return {
         "messages": [
           {"role": "system", "content": system_prompt},
@@ -81,6 +83,7 @@ def main() -> None:
     rows = []
     skipped = 0
 
+    # Only accepted examples count toward the limit; empty/short records are skipped.
     for idx, row in enumerate(ds):
         user = first_nonempty(row, ("user", "input", "prompt"))
         assistant = first_nonempty(row, ("bot", "response", "output"))
@@ -96,6 +99,7 @@ def main() -> None:
         if args.limit and len(rows) >= args.limit:
             break
 
+    # JSONL stores one independent example per line; retain Unicode rather than ASCII escapes.
     with open(args.output, "w", encoding="utf-8") as f:
         for row in rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")

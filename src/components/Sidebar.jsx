@@ -1,8 +1,13 @@
-import React from 'react';
+/*
+ * Conversation navigation and portal links. Mutations are delegated to callbacks so this component does not own chat storage.
+ */
+
+import React, { useEffect, useRef } from 'react';
+import { Brain, MessageCircle, SlidersHorizontal, Stethoscope } from 'lucide-react';
 
 const Sidebar = ({
   user,
-  conversations,
+  conversations = [],
   onNewConversation,
   onOpenConversation,
   onRenameConversation,
@@ -10,15 +15,26 @@ const Sidebar = ({
   onOpenPreferences,
   onManageBilling,
   onHome,
+  isOpen = false,
+  onClose,
 }) => {
+  const closeButtonRef = useRef(null);
+  useEffect(() => { if (isOpen) closeButtonRef.current?.focus(); }, [isOpen]);
+  // This can point to a separate PHP host while the React app runs through Vite.
   const doctorsPortalUrl =
     import.meta.env.VITE_DOCTORS_PORTAL_URL || '/doctors_portal/index.php';
 
   return (
-    <aside className="sidebar">
+    <aside id="chat-sidebar" className={`sidebar ${isOpen ? 'is-open' : ''}`} aria-label="Chat navigation" onKeyDown={event => {
+      if (!isOpen || event.key !== 'Tab' || !window.matchMedia('(max-width: 900px)').matches) return;
+      const controls = [...event.currentTarget.querySelectorAll('button, a[href]')].filter(el => !el.disabled && el.getBoundingClientRect().width > 0);
+      const target = event.shiftKey ? controls.at(-1) : controls[0];
+      if (document.activeElement === (event.shiftKey ? controls[0] : controls.at(-1))) { event.preventDefault(); target?.focus(); }
+    }}>
+      <button ref={closeButtonRef} type="button" className="sidebar-close pill" aria-label="Close navigation" onClick={onClose}>✕ Close</button>
       <div className="sidebar-header">
         <button className="logo" type="button" onClick={() => onHome?.()}>
-          <span className="logo-mark" />
+          <Brain size={23} className="sidebar-brand-icon" aria-hidden="true" />
           Aura
         </button>
         <button className="new-chat-btn" type="button" onClick={onNewConversation}>
@@ -29,21 +45,21 @@ const Sidebar = ({
 
       <div>
         <div className="sidebar-section-label">Navigation</div>
-        <div className="nav-item" onClick={onNewConversation}>
-          <span className="nav-icon">#</span>
+        <button type="button" className="nav-item" onClick={onNewConversation}>
+          <span className="nav-icon"><MessageCircle size={18} /></span>
           Chats
-        </div>
-        <div className="nav-item" onClick={onOpenPreferences}>
-          <span className="nav-icon">AI</span>
+        </button>
+        <button type="button" className="nav-item" onClick={onOpenPreferences}>
+          <span className="nav-icon"><SlidersHorizontal size={18} /></span>
           AI Preferences
-        </div>
+        </button>
         <a
           className="nav-item"
           href={doctorsPortalUrl}
           target="_blank"
           rel="noopener noreferrer"
         >
-          <span className="nav-icon">!</span>
+          <span className="nav-icon"><Stethoscope size={18} /></span>
           Seek human help
         </a>
       </div>
@@ -56,14 +72,16 @@ const Sidebar = ({
               <li
                 key={conversation.id}
                 className="recent-item saved"
-                onClick={() => onOpenConversation(conversation.id)}
               >
-                <span className="recent-dot" />
-                <span className="recent-title">{conversation.title}</span>
+                <button type="button" className="recent-open" onClick={() => onOpenConversation(conversation.id)} title={conversation.title}>
+                  <span className="recent-dot" />
+                  <span className="recent-title">{conversation.title}</span>
+                </button>
                 <div className="recent-actions">
                   <button
                     type="button"
                     onClick={(e) => {
+                      // Keep the nested rename action from also opening the conversation row.
                       e.stopPropagation();
                       onRenameConversation(conversation.id);
                     }}

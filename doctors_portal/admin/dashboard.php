@@ -1,4 +1,5 @@
 <?php
+/* Admin overview: aggregate counts and join recent appointment requests with their doctor names. */
 require_once "_header.php";
 
 // Stats
@@ -6,6 +7,7 @@ $doctors_count = $conn->query("SELECT COUNT(*) AS c FROM doctors")->fetch_assoc(
 $appt_count = $conn->query("SELECT COUNT(*) AS c FROM appointments")->fetch_assoc()['c'];
 $pending_count = $conn->query("SELECT COUNT(*) AS c FROM appointments WHERE status='pending'")->fetch_assoc()['c'];
 
+// Join doctor names into the newest five requests for the dashboard preview.
 $recent = $conn->query("
     SELECT a.*, d.name AS doctor_name
     FROM appointments a
@@ -44,6 +46,7 @@ $recent = $conn->query("
 </div>
 
 <h3>Recent Appointments</h3>
+<div class="table-responsive">
 <table class="table table-striped">
     <thead>
         <tr>
@@ -70,5 +73,6 @@ $recent = $conn->query("
         <?php endif; ?>
     </tbody>
 </table>
+</div>
 
 <?php require_once "_footer.php"; ?>
