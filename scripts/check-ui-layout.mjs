@@ -83,7 +83,7 @@ try{
   await check(`active composer visible ${width}px`,bounds('.chat-active-composer'));
   await check(`sending preserves composer and focus ${width}px`, 'document.querySelector("textarea")===window.initialChatComposer && document.activeElement===window.initialChatComposer');
   await checkThemeParity(`active chat ${width}px`);
-  await check(`booking link rendered ${width}px`,'!!document.querySelector(".message-bubble a")');
+  await check(`doctor handoff is safe ${width}px`,'!!document.querySelector(".message-bubble a") || [...document.querySelectorAll(".message-bubble.bot")].at(-1)?.textContent.includes("doctor directory is currently unavailable")');
   await click('document.querySelector(".pill-upgrade")');
   await check(`summary dialog fits ${width}px`,bounds('[role="dialog"]'));
   await checkThemeParity(`summary dialog ${width}px`);

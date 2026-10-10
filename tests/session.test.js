@@ -78,15 +78,27 @@ test('archive continuation retains history, persists replies, and isolates accou
 test('booking provides a portal link without confirmation or unnecessary contact collection', async () => {
   let modelCalls = 0;
   const harness = hookHarness('src/hooks/useChat.js', 'useChat', {
+    DOCTORS_PORTAL_URL: 'https://doctors.example.com/index.php',
     isFirebaseEnabled: false, FirebaseService: { firestore: firestore() },
     OpenAIService: { sendChatMessage: async () => { modelCalls++; } },
   }, [{ isGuest: true }, 'guest', true, {}]);
   await harness.render().handleSendMessage('Can I talk to a human?');
   const reply = harness.render().messages.at(-1).text;
-  assert.match(reply, /\/doctors_portal\/index.php/);
+  assert.match(reply, /https:\/\/doctors\.example\.com\/index.php/);
   assert.match(reply, /no appointment has been booked/);
   assert.doesNotMatch(reply, /Booking confirmed|share your contact/);
   assert.equal(modelCalls, 0);
+});
+
+test('an unconfigured external doctor directory provides no broken local PHP link', async () => {
+  const harness = hookHarness('src/hooks/useChat.js', 'useChat', {
+    isFirebaseEnabled: false, FirebaseService: {},
+    OpenAIService: { sendChatMessage: async () => { throw new Error('Unexpected model call'); } },
+  }, [{ isGuest: true }, 'guest', true, {}]);
+  await harness.render().handleSendMessage('Can I talk to a human?');
+  const reply = harness.render().messages.at(-1).text;
+  assert.match(reply, /doctor directory is currently unavailable/);
+  assert.doesNotMatch(reply, /\.php|Booking confirmed/);
 });
 
 test('a failed send preserves a new draft written while the reply was pending', async () => {

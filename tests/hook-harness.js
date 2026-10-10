@@ -46,7 +46,7 @@ export function hookHarness(path, exportName, services = {}, initialArgs = []) {
     .replaceAll('export const ', 'const ');
   const context = vm.createContext({
     useState, useEffect, useRef, localStorage, window: { localStorage },
-    crypto: globalThis.crypto, console, setTimeout, clearTimeout, AbortController, Date, ...services,
+    crypto: globalThis.crypto, console, setTimeout, clearTimeout, AbortController, Date, DOCTORS_PORTAL_URL: '', ...services,
   });
   vm.runInContext(`${source}\nglobalThis.runHook = ${exportName};`, context);
   const render = (nextArgs = args) => {

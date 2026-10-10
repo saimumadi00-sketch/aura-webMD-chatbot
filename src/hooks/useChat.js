@@ -5,8 +5,8 @@
 import { useState, useEffect, useRef } from 'react';
 import FirebaseService, { isFirebaseEnabled } from '../services/firebase';
 import OpenAIService from '../services/openai-api';
+import { DOCTORS_PORTAL_URL } from '../config/constants';
 
-const doctorsPortalUrl = import.meta.env.VITE_DOCTORS_PORTAL_URL || '/doctors_portal/index.php';
 const HUMAN_INTENT_REGEX = /(talk to (a )?(human|person|therapist|doctor)|human help|human support|real person|book( a)? doctor|doctor appointment|need (a )?therapist|speak to (a )?therapist|can i talk to a human)/i;
 
 const loadConversations = (key) => {
@@ -133,7 +133,9 @@ export const useChat = (user, userId, isGuest, preferences) => {
       if (!useLocalMessages) userWrite = Promise.resolve().then(() => FirebaseService.firestore.addMessage(userId, { text, sender: 'user', createdAt: FirebaseService.serverTimestamp() }, userMessage.id)).then(() => null, error => error);
       if (!isCurrentOperation(operation) || controller.signal.aborted) return;
       const result = HUMAN_INTENT_REGEX.test(text)
-        ? { choices: [{ message: { content: `You can browse doctors and request an appointment here: ${doctorsPortalUrl}. Choose a doctor and submit the booking form; no appointment has been booked through this chat.` } }] }
+        ? { choices: [{ message: { content: DOCTORS_PORTAL_URL
+          ? `You can browse doctors and request an appointment here: ${DOCTORS_PORTAL_URL}. Choose a doctor and submit the booking form; no appointment has been booked through this chat.`
+          : 'The doctor directory is currently unavailable. No appointment has been booked through this chat.' } }] }
         : await OpenAIService.sendChatMessage(history, preferences, {
           signal: controller.signal,
           onText: (text) => {

@@ -20,9 +20,6 @@ const Sidebar = ({
 }) => {
   const closeButtonRef = useRef(null);
   useEffect(() => { if (isOpen) closeButtonRef.current?.focus(); }, [isOpen]);
-  // This can point to a separate PHP host while the React app runs through Vite.
-  const doctorsPortalUrl =
-    import.meta.env.VITE_DOCTORS_PORTAL_URL || '/doctors_portal/index.php';
 
   return (
     <aside id="chat-sidebar" className={`sidebar ${isOpen ? 'is-open' : ''}`} aria-label="Chat navigation" onKeyDown={event => {
@@ -55,9 +52,7 @@ const Sidebar = ({
         </button>
         <a
           className="nav-item"
-          href={doctorsPortalUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+          href="#/doctors"
         >
           <span className="nav-icon"><Stethoscope size={18} /></span>
           Seek human help

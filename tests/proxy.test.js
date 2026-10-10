@@ -2,8 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
 import { openAIProxy } from '../server/openai-proxy.js';
-import path from 'node:path';
-import { shouldPackagePortalFile } from '../scripts/portal-package-filter.js';
 
 function request(proxy, body, options = {}) {
   const req = Readable.from(options.chunks || [JSON.stringify(body)]);
@@ -14,12 +12,6 @@ function request(proxy, body, options = {}) {
   return proxy(req, res).then(() => res);
 }
 const valid = { model: 'gpt-4o-mini', messages: [{ role: 'user', content: 'Hello' }] };
-
-test('portal packaging excludes patient uploads and local environment files', () => {
-  const root = path.resolve('doctors_portal');
-  for (const relative of ['uploads', 'uploads/patient.pdf', '.env', 'admin/.env.local']) assert.equal(shouldPackagePortalFile(root, path.join(root, relative)), false);
-  for (const relative of ['index.php', 'admin/chat_pdf.php', 'assets/style.css']) assert.equal(shouldPackagePortalFile(root, path.join(root, relative)), true);
-});
 
 test('proxy forwards legitimate Unicode without exposing credentials and enforces output caps', async () => {
   const content = 'বাংলা';

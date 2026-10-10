@@ -1,0 +1,33 @@
+.doctor-portal { font-family: 'Arial', sans-serif; color-scheme: light; }
+.doctor-portal a { color: inherit; text-decoration: none; }
+.doctor-portal button, .doctor-portal input, .doctor-portal select { font-family: inherit; }
+.doctor-portal button { cursor: pointer; }
+.doctor-portal button:disabled { cursor: default; }
+.doctor-portal :focus-visible { outline: 2px solid #7a8967; outline-offset: 5px; }
+.doctor-portal .portal-serif { font-family: 'Georgia', 'Times New Roman', serif; font-weight: 400; }
+.portal-brand { display: grid; place-items: center; width: 35px; height: 35px; border: 1px solid #7a8967; border-radius: 50%; }
+.portal-dream { position: relative; height: 490px; isolation: isolate; }
+.dream-arch { position: absolute; inset: 15px 65px 35px; overflow: hidden; border-radius: 190px 190px 8px 8px; background: linear-gradient(#d8ded2, #eee7ce 65%); box-shadow: inset 12px 0 25px #ffffff45, 20px 25px 50px #314a3320; border: 12px solid #e7e7dc; }
+.dream-sun { position: absolute; width: 106px; height: 106px; top: 77px; left: 50%; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(circle at 30% 25%, #fff5cd, #d9ba7c); box-shadow: 0 0 45px #fff3c3; }
+.dream-hill { position: absolute; width: 550px; height: 330px; border-radius: 50%; }
+.hill-back { bottom: -155px; left: -210px; transform: rotate(25deg); background: linear-gradient(120deg, #a6b498, #6c8567); }
+.hill-front { bottom: -225px; right: -215px; transform: rotate(-20deg); background: linear-gradient(155deg, #859976, #304d3b); }
+.dream-path { position: absolute; width: 66px; height: 190px; bottom: -60px; left: 47%; transform: rotate(-30deg); border-radius: 50%; background: #e2d6b9; box-shadow: 12px 0 20px #33482b20; }
+.dream-sphere { position: absolute; z-index: 2; right: 17px; top: 0; width: 92px; height: 92px; border-radius: 50%; background: radial-gradient(circle at 28% 25%, #f5eee3, #c7b49a 68%, #8f816a); box-shadow: 18px 25px 30px #35412b15; animation: portal-float 7s ease-in-out infinite; }
+.dream-orbit { position: absolute; z-index: 3; width: 110%; height: 170px; border: 1px solid #9eab8855; border-radius: 50%; left: -5%; top: 155px; transform: rotate(-25deg); pointer-events: none; }
+.dream-stairs { position: absolute; z-index: 4; bottom: 48px; left: 0; width: 170px; height: 150px; transform: skewY(-8deg); }
+.dream-stairs i { position: absolute; height: 23px; width: 94px; background: linear-gradient(#f9f5e8 45%, #d2cabc 46%); box-shadow: 6px 7px 14px #31432b12; }
+.dream-stairs i:nth-child(1) { bottom: 0; left: 0; }.dream-stairs i:nth-child(2) { bottom: 24px; left: 20px; }.dream-stairs i:nth-child(3) { bottom: 48px; left: 40px; }.dream-stairs i:nth-child(4) { bottom: 72px; left: 60px; }.dream-stairs i:nth-child(5) { bottom: 96px; left: 80px; }
+.dream-pebble { position: absolute; bottom: 5px; right: 70px; width: 80px; height: 35px; border-radius: 50%; transform: rotate(-12deg); background: radial-gradient(ellipse at 25% 15%, #c7d1b4, #728366); box-shadow: 12px 15px 20px #33442b20; }
+.dream-caption { position: absolute; right: -10px; top: 180px; writing-mode: vertical-rl; font-size: 8px; letter-spacing: 3px; color: #78856d; }
+.dream-note { position: absolute; z-index: 5; bottom: 83px; right: 5px; display: flex; align-items: center; gap: 12px; padding: 18px 22px; border: 1px solid #fff9; background: #f9f9f0d9; backdrop-filter: blur(12px); border-radius: 12px; font-size: 11px; line-height: 1.8; box-shadow: 0 10px 35px #36433110; }
+.dream-note strong { font-weight: 500; }.dream-star { position: absolute; left: 18px; top: 58px; font-size: 50px; color: #8d9d7b; }
+.portrait-orbit { position: absolute; width: 230px; height: 230px; border: 1px solid #fff8; border-radius: 50%; top: 20px; }
+.portrait-silhouette { position: relative; width: 125px; height: 145px; border-radius: 65px 65px 0 0; background: #fbf9ef70; display: flex; align-items: center; justify-content: center; }
+.portrait-silhouette::before { content: ''; position: absolute; width: 65px; height: 65px; border-radius: 50%; top: -35px; background: #fbf9efb0; }
+.portrait-silhouette span { font-family: Georgia, serif; font-style: italic; font-size: 34px; color: #53634e; }
+.portal-dialog { position: fixed; inset: 0; margin: auto; width: min(540px, calc(100% - 32px)); max-height: 90dvh; overflow: auto; border: 1px solid #253b3120; border-radius: 24px; background: #f7f6f0; color: #253b31; }
+.portal-dialog::backdrop { background: #17281b70; backdrop-filter: blur(5px); }
+@keyframes portal-float { 50% { transform: translateY(12px); } }
+@media (max-width: 640px) { .portal-dream { height: 390px; max-width: 450px; width: 100%; margin: auto; }.dream-arch { inset: 10px 45px 30px; }.dream-note { right: 0; bottom: 65px; }.dream-sphere { width: 70px; height: 70px; }.dream-caption { right: -5px; }.dream-stairs { transform: scale(.8) skewY(-8deg); transform-origin: left bottom; } }
+@media (prefers-reduced-motion: reduce) { .doctor-portal *, .doctor-portal *::before { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }

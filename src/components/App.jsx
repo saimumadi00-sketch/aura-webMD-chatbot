@@ -11,6 +11,7 @@ import ChatPage from './ChatPage';
 import AuthForm from './AuthForm';
 import Welcome from './Welcome';
 import Billing from './Billing';
+import DoctorPortal from './DoctorPortal';
 
 const App = () => {
   // URL routes choose pages; useAura supplies session state and actions.
@@ -60,6 +61,7 @@ const App = () => {
 
   return (
     <Routes>
+      <Route path="/doctors" element={<DoctorPortal />} />
       <Route
         path="/"
         element={<LandingPage {...themeControls} onStart={() => navigate('/welcome')} onLogin={() => navigate('/login')} />}

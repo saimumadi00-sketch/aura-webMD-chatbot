@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { Brain, ArrowRight, MessageCircle, SlidersHorizontal, Stethoscope, Shield } from 'lucide-react';
 import '../styles/landing.css';
 import ThemeToggle from './ThemeToggle';
+import { DOCTORS_PORTAL_URL as portalUrl } from '../config/constants';
 
 export default function LandingPage({ onStart, onLogin, theme, onToggleTheme }) {
   useEffect(() => {
@@ -14,14 +15,13 @@ export default function LandingPage({ onStart, onLogin, theme, onToggleTheme }) 
     event.preventDefault();
     document.getElementById(id)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   };
-  const portalUrl = import.meta.env.VITE_DOCTORS_PORTAL_URL || '/doctors_portal/index.php';
   return (
     <div className="landing">
       <header className="landing-nav">
         <a className="nav-brand" href="#/" aria-label="Aura home"><Brain size={25} /><span>Aura</span></a>
         <nav className="nav-links" aria-label="Main navigation">
           <a href="#features" onClick={event => scrollToSection(event, 'features')}>Features</a>
-          <a href={portalUrl}>Find a doctor</a>
+          <a href="#/doctors">Find a doctor</a>
         </nav>
         <div className="landing-nav-actions"><ThemeToggle theme={theme} onToggleTheme={onToggleTheme} /><button className="nav-login" onClick={() => onLogin?.()}>Sign in</button></div>
       </header>
@@ -45,7 +45,7 @@ export default function LandingPage({ onStart, onLogin, theme, onToggleTheme }) 
           <div className="feature-grid">
             <article><MessageCircle size={24} /><h3>Talk it through</h3><p>Explore what's on your mind with supportive conversation and reflective prompts.</p></article>
             <article><SlidersHorizontal size={24} /><h3>Make it your own</h3><p>Choose your preferred tone, response style, and instructions in AI Preferences.</p></article>
-            <article><Stethoscope size={24} /><h3>Find human support</h3><p>Browse the doctor directory and request an appointment when you want professional care.</p><a href={portalUrl}>Find a doctor <ArrowRight size={16} /></a></article>
+            <article><Stethoscope size={24} /><h3>Find human support</h3><p>Connect with a qualified professional when you want support beyond chat.</p>{portalUrl ? <a href={portalUrl} target="_blank" rel="noopener noreferrer">Find a doctor <ArrowRight size={16} /></a> : <p>Doctor directory currently unavailable.</p>}</article>
           </div>
         </section>
         <section className="about-section" id="science"><Shield size={26} /><div><h2>A companion, at your pace.</h2><p>Aura offers AI-generated support and does not replace professional care. Chat requests use our server API. Signed-in active conversations use Firebase; archives stay on your device.</p></div></section>

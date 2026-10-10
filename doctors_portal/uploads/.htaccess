@@ -1,2 +1,0 @@
-# Legacy uploads must never be served directly. New files use private storage.
-Require all denied

@@ -7,7 +7,7 @@ import { createRoot } from "react-dom/client";
 import AppWrapper from "./components/App";
 import "./index.css";
 import "../styles/custom.css";
-import "../doctors_portal/assets/tokens.css";
+import "./styles/tokens.css";
 import "./styles/design-system.css";
 
 

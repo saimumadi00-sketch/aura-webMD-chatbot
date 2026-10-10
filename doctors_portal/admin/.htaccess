@@ -1,3 +1,0 @@
-<FilesMatch "^_(auth|header|footer)\.php$">
-    Require all denied
-</FilesMatch>

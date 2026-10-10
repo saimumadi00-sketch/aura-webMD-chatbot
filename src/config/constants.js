@@ -3,6 +3,10 @@
  */
 
 // VITE_ values are bundled into browser JavaScript and must contain no private secrets.
+import { externalPortalUrl } from '../utils/portal-url';
+
+export const DOCTORS_PORTAL_URL = externalPortalUrl(import.meta.env.VITE_DOCTORS_PORTAL_URL);
+
 export const FIREBASE_CONFIG = {
   apiKey: import.meta.env.VITE_FB_API_KEY,
   authDomain: import.meta.env.VITE_FB_AUTH_DOMAIN,

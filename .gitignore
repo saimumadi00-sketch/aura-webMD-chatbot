@@ -14,9 +14,7 @@ dist/
 *.log
 
 # Patient-uploaded files
-doctors_portal/uploads/*
 private/
-!doctors_portal/uploads/.htaccess
 
 # Local editor and operating system files
 .vscode/

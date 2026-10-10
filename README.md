@@ -2,7 +2,7 @@
 
 Aura is a supportive AI chat companion built with React and Vite. It includes
 guest chat, Firebase email/password authentication, conversation management,
-AI preferences, PDF summaries, and a separate PHP/MySQL doctors portal.
+AI preferences, PDF summaries, and optional links to a separately hosted PHP doctors portal.
 
 Aura is a non-clinical companion. The billing page is a prototype; it does not
 process payments or provide the services advertised on its pricing cards.
@@ -36,13 +36,11 @@ On other shells, `npm` can be used in place of `npm.cmd`.
 | `OPENAI_API_KEY` | Private server credential for AI requests |
 | `OPENAI_PROJECT_ID` | Optional server-side OpenAI project identifier |
 | `VITE_FB_*` | Browser Firebase configuration; names are listed in `.env.example` |
-| `VITE_DOCTORS_PORTAL_URL` | Portal URL; defaults to `/doctors_portal/index.php` |
+| `VITE_DOCTORS_PORTAL_URL` | Optional external portal URL; leave blank until the PHP website is hosted |
 | `APP_ORIGIN` | Exact website origin in production, such as `https://example.com` |
 | `API_PORT` | Standalone API port; defaults to `3001` |
-| `AURA_ADMIN_PASSWORD` | Temporary environment value used by CLI admin provisioning |
 
-Keep `.env` private. Git ignores it, generated builds, dependencies, and portal
-uploads. Variables prefixed with `VITE_` are public browser configuration: never
+Keep `.env` private. Git ignores it, generated builds, dependencies, and private files. Variables prefixed with `VITE_` are public browser configuration: never
 use that prefix for private API keys. The frontend calls `/api/openai/...`; the
 server attaches the OpenAI credential and uses fixed upstream endpoints.
 
@@ -58,49 +56,33 @@ server attaches the OpenAI credential and uses fixed upstream endpoints.
 | `npm.cmd run test:ui:navigation` | Check page Back buttons, browser history, direct-link fallbacks, and guest session preservation |
 | `npm.cmd run test:ui:streaming` | Check partial replies, Stop, draft preservation, and scrolling during generation |
 | `npm.cmd run lint` | ESLint checks for `src` |
-| `npm.cmd run build` | Build frontend and copy the PHP portal into `dist` |
+| `npm.cmd run build` | Build the React frontend into `dist` |
 | `npm.cmd run preview` | Local build preview with API middleware |
 | `npm.cmd run start:api` | Standalone production API, bound to `127.0.0.1` |
 
-## Doctors portal
+## Separate doctors website
 
-The frontend and portal share `doctors_portal/assets/tokens.css` for their Aura
-palette and use the device's `aura-theme` preference on the same origin. A portal
-hosted on a separate origin keeps its own theme preference. Set `AURA_APP_URL`
-in the PHP server environment to the frontend URL for the directory's “Back to
-Aura” link; the default `../` supports the packaged deployment.
+The PHP doctors website is an independent project beside this one at
+`../Aura_doctors_portal`. Its README covers PHP/MySQL setup, administrator
+provisioning, private uploads, migrations, and portal tests. Its public document
+root is `public/`. Main-site builds contain no PHP files or portal sources.
 
-The portal needs PHP with `mysqli` and a configured MySQL database. Vite does
-not execute PHP. Host it using a PHP-capable server, then set
-`VITE_DOCTORS_PORTAL_URL` to that server's portal URL for local development.
-Connection settings come from the PHP server environment.
-
-Import `doctors_portal/schema.sql` for a new MySQL database. Existing databases
-need a reviewed migration rather than blindly importing this initial schema.
-Configure `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` on the PHP
-server. PHP does not load the Node `.env` automatically. Copying the portal into
-`dist` does not configure PHP or MySQL.
-
-Administrator accounts can only be created from a shell on the server:
-
-```powershell
-$env:AURA_ADMIN_PASSWORD = Read-Host 'New administrator password'
-php doctors_portal/admin/create_admin.php YOUR_USERNAME
-Remove-Item Env:AURA_ADMIN_PASSWORD
-```
-
-Use at least 12 characters. Browser access to the creation script returns 403.
+The main app owns `src/styles/tokens.css`; the PHP website has its own palette
+copy. To enable doctor links, set `VITE_DOCTORS_PORTAL_URL` to the external
+HTTP(S) portal URL and restart/rebuild the frontend. Until it is configured,
+doctor links are unavailable and chat does not claim to book appointments.
+Set `AURA_APP_URL` on the PHP host to enable its link back to the main site.
 
 ## Production deployment
 
 1. Run `npm.cmd run build`.
-2. Serve `dist` with your web server, enabling PHP for the portal if used.
+2. Serve `dist` with your web server. Deploy the doctors website separately.
 3. Start the API with `npm.cmd run start:api`, providing private credentials
    through server environment variables or a private root `.env`.
 4. Set `APP_ORIGIN` to the exact public origin, including the scheme and any port.
 5. Reverse-proxy `/api/openai/` to `http://127.0.0.1:3001`, preserving the path.
 
-Static-only hosting cannot execute the API or PHP portal. The proxy limits
+Static-only hosting cannot execute the AI API. The proxy limits
 requests and concurrent upstream calls, caps output tokens, rejects other
 origins, and hides upstream errors. These process-wide limits preserve guest
 access; they do not authenticate users or enforce individual billing quotas.
@@ -129,7 +111,6 @@ gRPC requirement. Review `npm.cmd audit` before choosing targeted upgrades;
 | `src/utils/helpers.js` | Chat formatting, image parsing, prompts, and retries |
 | `server/openai-proxy.js` | Server-only credentials and upstream request boundary |
 | `server/index.js` | Standalone API entry point |
-| `doctors_portal/` | Doctor listings, bookings, and administration |
 | `scripts/` | Portal copying and optional fine-tuning data preparation |
 
 ## Current behavior and remaining integrations
@@ -173,30 +154,8 @@ OpenAI, or MySQL are configured correctly. Historical notes are in
 
 ## Portal storage and development server
 
-Enable PHP's `mysqli` and `fileinfo` extensions. For local development:
-
-```powershell
-php -S 127.0.0.1:8080 -t doctors_portal doctors_portal/router.php
-```
-
-Set `VITE_DOCTORS_PORTAL_URL=http://127.0.0.1:8080/index.php` and restart Vite.
-Admin mutations and public booking forms use session CSRF tokens. Logout and
-delete/status actions accept POST only. The portal timezone defaults to UTC;
-set `PORTAL_TIMEZONE` to your clinic's timezone (for example `Asia/Dhaka`).
-
-PDF uploads are capped at 5 MB and checked for PDF signature and MIME type.
-Set `PORTAL_UPLOAD_DIR` to an absolute private directory outside the web root.
-The local default is `private/doctor-uploads` beneath the project, which is
-excluded from Git and builds. Downloads require portal administrator login.
-Production storage must be persistent. Set `PORTAL_SECURE_COOKIES=1` on HTTPS
-deployments where TLS terminates at a reverse proxy.
-
-Legacy PDFs in `doctors_portal/uploads` are excluded from production builds.
-Apache must allow the supplied access rules; on Nginx explicitly deny public
-`/doctors_portal/uploads/` and internal helper/configuration files. On the server,
-back up your database/files and run `php scripts/migrate-portal-uploads.php` to
-move referenced legacy PDFs into private storage. Review any skipped files.
-Existing previously published files must also be removed from the deployment.
+PHP/MySQL deployment and patient upload instructions live in the separate
+doctors website README.
 
 The browser accepts PNG/JPEG/WebP/GIF attachments up to 512 KB. Recent AI
 context is bounded to avoid oversized requests; long chats may omit older
