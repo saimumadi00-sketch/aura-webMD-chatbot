@@ -10,15 +10,19 @@ import { useEffect, useRef } from 'react';
 export const parseImageFromMessage = (text = '') => {
   const imageMatch = text.match(/data:image[^;]+;base64,[^\s)]+/i);
   const labelMatch = text.match(/Image uploaded: ([^\n]+)\.(?=\n|$)/i);
+  const dimensions = text.match(/Image dimensions: (\d{1,4})x(\d{1,4})\.(?=\n|$)/);
 
   const dataUrl = imageMatch?.[0] || null;
   let cleanText = text;
   if (dataUrl) cleanText = cleanText.replace(dataUrl, '');
   if (labelMatch?.[0]) cleanText = cleanText.replace(labelMatch[0], '');
+  if (dimensions?.[0]) cleanText = cleanText.replace(dimensions[0], '');
 
   return {
     dataUrl,
     label: labelMatch?.[1]?.trim() || null,
+    width: dimensions ? Number(dimensions[1]) : undefined,
+    height: dimensions ? Number(dimensions[2]) : undefined,
     cleanText: cleanText.trim(),
   };
 };
@@ -105,7 +109,7 @@ export const exponentialBackoffFetch = async (url, init = {}) => {
       attempt += 1;
       const status = err?.status;
       // Retry transient network/server/rate-limit errors, but stop on other HTTP failures.
-      const retryable = status === undefined || status >= 500 || status === 429;
+      const retryable = status === undefined || (status >= 500 && status !== 503);
       if (!retryable || attempt >= max) break;
       // Double the wait after each failure, with an eight-second ceiling.
       const delay = Math.min(base * 2 ** (attempt - 1), 8000);

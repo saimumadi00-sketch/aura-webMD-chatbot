@@ -1,0 +1,48 @@
+# Merge into an HTTPS server configured with your real hostname and TLS certificate.
+# Set root to this project's dist directory. Keep private/ and .env outside that root.
+root /srv/aura/dist;
+index index.html;
+autoindex off;
+gzip on;
+gzip_types text/css application/javascript application/json image/svg+xml;
+add_header X-Content-Type-Options nosniff always;
+add_header Referrer-Policy strict-origin-when-cross-origin always;
+add_header X-Frame-Options DENY always;
+# Enable only in the HTTPS server after confirming HTTPS works for the hostname.
+add_header Strict-Transport-Security "max-age=31536000" always;
+
+location ^~ /api/openai/ {
+    client_max_body_size 2m;
+    client_body_timeout 10s;
+    proxy_pass http://127.0.0.1:3001;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For "";
+    proxy_read_timeout 40s;
+    proxy_buffering off;
+}
+location ~ ^/assets/ {
+    expires 1y;
+    try_files $uri =404;
+}
+location ~ ^/(chat|preferences|login|register|welcome)/?$ {
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header X-Frame-Options DENY always;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header Cache-Control no-store;
+    add_header X-Robots-Tag "noindex, nofollow";
+    try_files /app.html =404;
+}
+location ~ ^/(privacy|terms|contact|doctors|billing)/?$ {
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header X-Frame-Options DENY always;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header Cache-Control no-cache;
+    try_files $uri/index.html =404;
+}
+location ~ /\. { deny all; }
+location / { try_files $uri $uri/ =404; }
+error_page 404 /404.html;
+location = /404.html { internal; }

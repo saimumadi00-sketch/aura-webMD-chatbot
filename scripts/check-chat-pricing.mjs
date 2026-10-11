@@ -18,7 +18,7 @@ try {
  await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
  for(const width of [768,1366]){
   await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});
-  await evaluate('location.hash="#/billing";window.scrollTo(0,0)');await wait();
+  await evaluate('history.pushState(null,"","/billing");window.dispatchEvent(new PopStateEvent("popstate"));window.scrollTo(0,0)');await wait();
   await check('one global frequency control '+width,'document.querySelectorAll(".cycle-toggle").length===1 && !document.querySelector(".plan-card .cycle-toggle")');
   await click('[...document.querySelectorAll(".cycle-btn")].find(e=>e.textContent==="Yearly")');
   await click('[...document.querySelectorAll(".toggle-btn")].find(e=>e.textContent==="Personal")');
@@ -30,7 +30,7 @@ try {
    if(Math.max(...positions)-Math.min(...positions)>1)throw Error('Card buttons not aligned');
   }
  }
- await evaluate('location.hash="#/chat"');await wait();
+ await evaluate('history.pushState(null,"","/chat");window.dispatchEvent(new PopStateEvent("popstate"))');await wait();
  if(await evaluate('!!document.querySelector(".guest-btn")'))await click('document.querySelector(".guest-btn")');
  await click('document.querySelector(".new-chat-btn")');
  await evaluate('(()=>{window.originalFetch=window.fetch;window.fetch=(url,options)=>String(url).includes("/api/openai/")?new Promise(resolve=>{window.finishReply=text=>resolve(new Response(JSON.stringify({choices:[{message:{content:text}}]}),{status:200,headers:{"Content-Type":"application/json"}}));}):window.originalFetch(url,options);window.firstComposer=document.querySelector("textarea");})()');

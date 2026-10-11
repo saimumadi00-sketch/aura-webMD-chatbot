@@ -3,7 +3,7 @@
  */
 
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Check,
   ArrowLeft,
@@ -169,7 +169,7 @@ export default function Billing({ onBack, onSelectPlan, user, isGuest, theme, on
         <header className="billing-header">
           <div className="billing-topbar">
             <button type="button" className="billing-back" onClick={handleBack}><ArrowLeft size={18} aria-hidden="true" /><span>Back</span></button>
-            <a className="billing-brand" href="#/">Aura</a>
+            <Link className="billing-brand" to="/">Aura</Link>
             <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />
           </div>
           <div className="billing-heading">

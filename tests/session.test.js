@@ -24,7 +24,7 @@ test('failed login stays unauthenticated; successful login and reset use real ad
   session = harness.render();
   assert.equal(session.user, null);
   assert.equal(session.view, 'welcome');
-  assert.equal(session.error, 'Invalid credentials');
+  assert.equal(session.error, 'Unable to sign in. Check your email and password and try again.');
   fail = false;
   assert.equal(await session.handleLogin('user@example.com', 'correct'), true);
   session = harness.render();
@@ -38,6 +38,33 @@ test('failed login stays unauthenticated; successful login and reset use real ad
   fail = false;
   assert.equal(await session.handleLogout(), true);
   assert.equal(harness.render().user, null);
+});
+
+test('auth errors hide provider details and password recovery keeps account existence private', async () => {
+  let resetCode = 'auth/user-not-found';
+  const harness = hookHarness('src/hooks/useAuth.js', 'useAuth', {
+    auth: {}, isFirebaseEnabled: true, onAuthStateChanged: () => () => {},
+    FirebaseService: { auth: {
+      createUser: async () => { throw Object.assign(new Error('EMAIL_EXISTS: private account details'), { code: 'auth/email-already-in-use' }); },
+      signIn: async () => { throw Object.assign(new Error('EMAIL_NOT_FOUND: private account details'), { code: 'auth/user-not-found' }); },
+      resetPassword: async () => { if (resetCode) throw Object.assign(new Error('private provider details'), { code: resetCode }); },
+    } },
+  });
+  let session = harness.render();
+  assert.equal(await session.handleRegister('a@example.com', 'password', 'User'), false);
+  assert.ok(!harness.render().error.includes('EMAIL_EXISTS'));
+  assert.equal(await session.handleLogin('a@example.com', 'password'), false);
+  assert.ok(!harness.render().error.includes('EMAIL_NOT_FOUND'));
+  assert.equal(await session.handleResetPassword('a@example.com'), true);
+  session = harness.render();
+  const absentNotice = session.notice;
+  assert.equal(session.error, null);
+  resetCode = null;
+  assert.equal(await session.handleResetPassword('a@example.com'), true);
+  assert.equal(harness.render().notice, absentNotice);
+  resetCode = 'auth/network-request-failed';
+  assert.equal(await session.handleResetPassword('a@example.com'), false);
+  assert.equal(harness.render().error, 'Check your connection and try again.');
 });
 
 test('archive continuation retains history, persists replies, and isolates account storage', async () => {
@@ -174,12 +201,35 @@ test('late preference saves and subscriptions cannot alter a subsequent account 
       savePreferences: () => new Promise(resolve => { finishSave = resolve; }),
     } },
   });
-  const save = harness.render().handleSavePreferences({ tone: 'old account' });
+  const save = harness.render().handleSavePreferences({ tone: 'friendly' });
   uid = 'bob'; harness.render();
   uid = 'alice'; harness.render();
-  subscriptions[0]({ exists: () => true, data: () => ({ tone: 'stale subscription' }) });
+  subscriptions[0]({ exists: () => true, data: () => ({ tone: 'professional' }) });
   finishSave(); await save;
   assert.equal(harness.render().preferences.tone, 'empathetic');
+});
+
+test('legacy account preferences are normalized before schema-restricted saves', async () => {
+  let subscription;
+  let saved;
+  const harness = hookHarness('src/hooks/useAura.js', 'useAura', {
+    isFirebaseEnabled: true, parseImageFromMessage: () => ({}),
+    useAuth: () => ({ user: { uid: 'alice' }, userId: 'alice', isGuest: false, isAuthReady: true }),
+    useChat: () => ({ messages: [] }), OpenAIService: {},
+    FirebaseService: { firestore: { ...firestore(), subscribeToPreferences: (uid, callback) => { subscription = callback; return () => {}; }, savePreferences: async (uid, value) => { saved = value; } } },
+  });
+  harness.render();
+  subscription({ exists: () => true, data: () => ({ model: 'reasoning', tone: 'friendly', creativity: 200, verbosity: -1, oldField: 'legacy', memoryEnabled: true, notifications: { email: true }, customInstructions: 'a'.repeat(2001) }) });
+  const aura = harness.render();
+  assert.equal(aura.preferences.model, 'balanced');
+  await aura.handleSavePreferences({ tone: 'professional' });
+  assert.equal(saved.tone, 'professional');
+  assert.equal(saved.creativity, 100);
+  assert.equal(saved.verbosity, 0);
+  assert.equal(saved.customInstructions.length, 2000);
+  assert.equal(saved.memoryEnabled, false);
+  assert.equal(saved.notifications.email, false);
+  assert.ok(!Object.hasOwn(saved, 'oldField'));
 });
 
 test('archive failure preserves the server conversation instead of clearing it', async () => {

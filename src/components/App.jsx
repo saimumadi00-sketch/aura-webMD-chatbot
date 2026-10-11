@@ -1,132 +1,66 @@
-/*
- * Page routing: URL routes select landing/auth/chat/preferences/billing pages; useAura supplies session actions.
- */
-
-import React from 'react';
-import { HashRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
-import { useAura } from '../hooks/useAura';
-
+import React, { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
+import { BrowserRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import LandingPage from './LandingPage';
-import ChatPage from './ChatPage';
-import AuthForm from './AuthForm';
-import Welcome from './Welcome';
-import Billing from './Billing';
-import DoctorPortal from './DoctorPortal';
+import NotFound from './NotFound';
+import PublicInfo from './PublicInfo';
+import { pageMetadata } from '../utils/page-metadata';
 
-const App = () => {
-  // URL routes choose pages; useAura supplies session state and actions.
-  const aura = useAura();
+const SessionApp = lazy(() => import('./SessionApp'));
+const Billing = lazy(() => import('./Billing'));
+const DoctorPortal = lazy(() => import('./DoctorPortal'));
+
+// Preserve old bookmarks, excluding protocol-relative URLs.
+if (/^#\/(?!\/)/.test(window.location.hash)) window.history.replaceState(null, '', window.location.hash.slice(1));
+
+function App() {
+  const location = useLocation();
   const navigate = useNavigate();
-  const themeControls = { theme: aura.theme, onToggleTheme: aura.handleToggleTheme };
-
-  // Router-created entries stay inside the app. Direct links have no prior app page.
-  const goBack = (fallback = '/') => {
-    if (window.history.state?.idx > 0) navigate(-1);
-    else navigate(fallback, { replace: true });
-  };
-  const goChat = () => { aura.goChat(); navigate('/chat'); };
-  const sessionPage = view => (
-    <ChatPage
-      {...aura}
-      view={view}
-      handleLogout={handleLogout}
-      goLogin={() => navigate('/login')}
-      goChat={() => { aura.goChat(); goBack('/chat'); }}
-      goPreferences={() => navigate('/preferences')}
-      goBilling={() => navigate('/billing')}
-      goHome={goHome}
-    />
-  );
-
-  const handleLogin = async (email, password) => {
-    if (await aura.handleLogin(email, password)) navigate('/chat');
-  };
-
-  const handleRegister = async (email, password, username) => {
-    if (await aura.handleRegister(email, password, username)) navigate('/chat');
-  };
-
-  const handleGuest = () => {
-    aura.startGuest();
-    navigate('/chat');
-  };
-
-  const goHome = () => navigate('/');
-  const handleLogout = async () => {
-    const success = await aura.handleLogout();
-    if (success) navigate('/welcome');
-    return success;
-  };
-  const handlePlanSelect = () => { if (!aura.user) aura.startGuest(); goChat(); };
-
-  return (
-    <Routes>
+  const needsSession = /^\/(chat|preferences|login|register|welcome)\/?$/.test(location.pathname);
+  const [sessionStarted, setSessionStarted] = useState(needsSession);
+  // Keep a started session mounted when visiting public pages, preserving guest chats.
+  if (needsSession && !sessionStarted) setSessionStarted(true);
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('aura-theme') || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); }
+    catch { return 'dark'; }
+  });
+  useEffect(() => {
+    if (sessionStarted) return;
+    document.documentElement.classList.toggle('dark', theme !== 'light');
+    document.body.classList.toggle('theme-dark', theme !== 'light');
+    document.body.classList.toggle('theme-light', theme === 'light');
+    try { localStorage.setItem('aura-theme', theme); } catch { /* Device storage can be unavailable. */ }
+  }, [theme, sessionStarted]);
+  useEffect(() => {
+    const sync = event => { if (event.key === 'aura-theme' && ['light', 'dark'].includes(event.newValue)) setTheme(event.newValue); };
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, []);
+  useLayoutEffect(() => {
+    const previous = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    return () => { window.history.scrollRestoration = previous; };
+  }, []);
+  useLayoutEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }, [location.pathname, location.search, location.key]);
+  useEffect(() => {
+    const metadata = pageMetadata(location.pathname);
+    document.title = metadata.title;
+    document.querySelector('meta[name="description"]')?.setAttribute('content', metadata.description);
+    document.querySelector('meta[name="robots"]')?.setAttribute('content', metadata.index ? 'index,follow' : 'noindex,follow');
+    document.querySelector('meta[property="og:title"]')?.setAttribute('content', metadata.title);
+    document.querySelector('meta[property="og:description"]')?.setAttribute('content', metadata.description);
+    document.querySelector('meta[property="og:url"]')?.setAttribute('content', window.location.origin + location.pathname);
+    const canonical = document.querySelector('link[rel="canonical"]');
+    if (canonical) canonical.href = new URL(location.pathname, canonical.href).href;
+  }, [location.pathname]);
+  const controls = { theme, onToggleTheme: () => setTheme(previous => previous === 'light' ? 'dark' : 'light') };
+  return <Suspense fallback={<main className="route-loading" role="status">Loading page...</main>}>
+    {sessionStarted ? <SessionApp /> : <Routes>
+      <Route path="/" element={<LandingPage {...controls} onStart={() => navigate('/welcome')} onLogin={() => navigate('/login')} />} />
       <Route path="/doctors" element={<DoctorPortal />} />
-      <Route
-        path="/"
-        element={<LandingPage {...themeControls} onStart={() => navigate('/welcome')} onLogin={() => navigate('/login')} />}
-      />
-      <Route
-        path="/chat"
-        element={sessionPage('chat')}
-      />
-      <Route path="/preferences" element={sessionPage('preferences')} />
-      <Route
-        path="/login"
-        element={
-          <AuthForm {...themeControls}
-            mode="login"
-            onLogin={handleLogin}
-            onRegister={handleRegister}
-            onBack={() => goBack('/')}
-            error={aura.error}
-            notice={aura.notice}
-            onResetPassword={aura.handleResetPassword}
-          />
-        }
-      />
-      <Route
-        path="/register"
-        element={
-          <AuthForm {...themeControls}
-            mode="register"
-            onLogin={handleLogin}
-            onRegister={handleRegister}
-            onBack={() => goBack('/')}
-            error={aura.error}
-            notice={aura.notice}
-            onResetPassword={aura.handleResetPassword}
-          />
-        }
-      />
-       <Route
-       path="/welcome"
-       element={
-            <Welcome
-              onGuest={handleGuest}
-              onLogin={handleLogin}
-              onRegister={handleRegister}
-              error={aura.error}
-              notice={aura.notice}
-              onResetPassword={aura.handleResetPassword}
-              theme={aura.theme}
-              onToggleTheme={aura.handleToggleTheme}
-              onHome={goHome}
-              onBack={() => goBack('/')}
-            />
-        }
-      />
-      <Route path="*" element={<LandingPage {...themeControls} onStart={() => navigate('/welcome')} onLogin={() => navigate('/login')} />} />
-      <Route path="/billing" element={<Billing {...themeControls} user={aura.user} isGuest={aura.isGuest} onBack={() => goBack(aura.user ? '/chat' : '/')} onSelectPlan={handlePlanSelect} />} />
-    </Routes>
-  );
-};
-
-const AppWrapper = () => (
-  // Hash routes avoid requiring a server rewrite for frontend navigation.
-  <Router>
-    <App />
-  </Router>
-);
-
-export default AppWrapper;
+      <Route path="/billing" element={<Billing {...controls} onBack={() => navigate('/')} onSelectPlan={() => navigate('/welcome')} />} />
+      {['privacy', 'terms', 'contact'].map(page => <Route key={page} path={`/${page}`} element={<PublicInfo page={page} {...controls} />} />)}
+      <Route path="*" element={<NotFound {...controls} onHome={() => navigate('/')} />} />
+    </Routes>}
+  </Suspense>;
+}
+export default function AppWrapper() { return <BrowserRouter><App /></BrowserRouter>; }

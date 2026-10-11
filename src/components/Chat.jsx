@@ -61,22 +61,22 @@ const Chat = ({
     backdrop: {
       position: "fixed",
       inset: 0,
-      background: "radial-gradient(circle at 20% 20%, rgba(99,102,241,0.12), transparent 35%), rgba(0,0,0,0.55)",
+      background: "rgba(0,0,0,0.5)",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
       zIndex: 999,
-      backdropFilter: "blur(8px)",
+      backdropFilter: "blur(4px)",
       animation: "fadeIn 200ms ease-out",
     },
     card: {
       background: "var(--bg-panel)",
       color: "var(--text-main)",
-      borderRadius: "18px",
-      padding: "22px",
+      borderRadius: "12px",
+      padding: "32px",
       width: "min(400px, calc(100vw - 32px))",
-      boxShadow: "0 25px 80px var(--surface-shadow-color)",
-      border: "1px solid var(--border-subtle)",
+      boxShadow: "var(--aura-shadow-modal)",
+      border: 0,
       transform: "translateY(6px)",
       animation: "modalPop 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards",
     },
@@ -84,7 +84,7 @@ const Chat = ({
       display: "flex",
       justifyContent: "flex-end",
       gap: "10px",
-      marginTop: "18px",
+      marginTop: "24px",
     },
   };
   // A restored archive or any new message switches from starter prompts to the active thread.
@@ -163,10 +163,10 @@ const Chat = ({
             const target = event.shiftKey ? buttons.at(-1) : buttons[0];
             if (document.activeElement === (event.shiftKey ? buttons[0] : buttons.at(-1))) { event.preventDefault(); target?.focus(); }
           }}>
-            <p id="summary-title" className="modal-title" style={{ fontWeight: 800, marginBottom: 10, letterSpacing: "0.01em" }}>
+            <p id="summary-title" className="modal-title" style={{ fontSize: 20, lineHeight: "28px", fontWeight: 600, marginBottom: 8, letterSpacing: "-0.6px" }}>
               Export a gentle summary?
             </p>
-            <p className="modal-body" style={{ marginBottom: 14, lineHeight: 1.5, color: "var(--text-muted)" }}>
+            <p className="modal-body" style={{ marginBottom: 8, fontSize: 14, lineHeight: "20px", color: "var(--text-muted)" }}>
               Download an AI summary and a copy of this conversation as a PDF. The export can include your messages and images.
             </p>
             <div className="modal-actions" style={modalStyles.actions}>
@@ -176,7 +176,6 @@ const Chat = ({
                 ref={cancelSummaryRef}
                 onClick={() => { setShowSummaryPrompt(false); summaryButtonRef.current?.focus(); }}
                 disabled={isBotLoading}
-                style={{ background: "var(--bg-panel-soft)", border: "1px solid var(--border-subtle)" }}
               >
                 Cancel
               </button>
@@ -188,7 +187,6 @@ const Chat = ({
                   onSummarizeChat();
                 }}
                 disabled={isBotLoading}
-                style={{ boxShadow: "0 8px 24px rgba(99,102,241,0.35)" }}
               >
                 Create Summary
               </button>

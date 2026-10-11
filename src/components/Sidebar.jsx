@@ -3,6 +3,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { Brain, MessageCircle, SlidersHorizontal, Stethoscope } from 'lucide-react';
 
 const Sidebar = ({
@@ -50,13 +51,13 @@ const Sidebar = ({
           <span className="nav-icon"><SlidersHorizontal size={18} /></span>
           AI Preferences
         </button>
-        <a
+        <Link
           className="nav-item"
-          href="#/doctors"
+          to="/doctors"
         >
           <span className="nav-icon"><Stethoscope size={18} /></span>
           Seek human help
-        </a>
+        </Link>
       </div>
 
       <div>

@@ -5,6 +5,7 @@
 import React, { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ImagePlus, Square } from 'lucide-react';
 import { parseImageFromMessage } from '../utils/helpers';
+import { prepareImageUpload } from '../utils/image-upload';
 import LoadingIndicator from './LoadingIndicator';
 import MessageContent from './MessageContent';
 import useConversationScroll from '../hooks/useConversationScroll';
@@ -14,7 +15,7 @@ import '../styles/chat.css';
 const MessageBubble = memo(function MessageBubble({ msg, user, onImageLoad, animate }) {
   const isUser = msg.sender === 'user' || msg.sender === user?.id;
   // Image attachments share the text field; remove their markers from the visible caption.
-  const { dataUrl: imageSrc, label: imageLabel, cleanText: cleanedText } = parseImageFromMessage(msg.text || '');
+  const { dataUrl: imageSrc, label: imageLabel, cleanText: cleanedText, width, height } = parseImageFromMessage(msg.text || '');
   const showImage = isUser && !!imageSrc;
   const displayText = cleanedText || (imageSrc && !showImage ? "[image content omitted]" : msg.text);
 
@@ -28,7 +29,7 @@ const MessageBubble = memo(function MessageBubble({ msg, user, onImageLoad, anim
         {showImage ? (
           <div className="message-image">
             {cleanedText && <p className="message-text">{cleanedText}</p>}
-            <img src={imageSrc} onLoad={onImageLoad} alt={imageLabel || 'Uploaded image'} />
+            <img src={imageSrc} width={width} height={height} loading="lazy" decoding="async" onLoad={onImageLoad} alt={imageLabel || 'Image shared in this conversation'} />
             <p className="message-caption">{imageLabel ? `Image: ${imageLabel}` : 'Image uploaded'}</p>
           </div>
         ) : (
@@ -65,9 +66,18 @@ const ChatActive = ({
   const [uploadedImage, setUploadedImage] = useState(null);
   const [uploadError, setUploadError] = useState(null);
   const fileInputRef = useRef(null);
+  const uploadGeneration = useRef(0);
   const textareaRef = useRef(null);
   useEffect(() => {
+    const generationRef = uploadGeneration;
+    generationRef.current++;
+    setUploadedImage(null); setUploadError(null); setIsUploading(false);
+    return () => { generationRef.current++; };
+  }, [threadKey, user?.uid, user?.id]);
+  useEffect(() => {
     if (!messages.length) {
+      uploadGeneration.current++;
+      setIsUploading(false);
       setUploadedImage(null);
       setUploadError(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -83,6 +93,8 @@ const ChatActive = ({
 
   // Reset both React state and the native input so the same file can be selected again.
   const clearImage = () => {
+    uploadGeneration.current++;
+    setIsUploading(false);
     setUploadedImage(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -95,7 +107,7 @@ const ChatActive = ({
 
     // Keep attachment serialization compatible with formatChatHistory and PDF parsing.
     const payload = uploadedImage
-      ? [text, `Image uploaded: ${uploadedImage.name}.`, uploadedImage.dataUrl].filter(Boolean).join('\n\n')
+      ? [text, `Image uploaded: ${uploadedImage.description || uploadedImage.name}.`, `Image dimensions: ${uploadedImage.width}x${uploadedImage.height}.`, uploadedImage.dataUrl].filter(Boolean).join('\n\n')
       : text;
 
     onSendMessage(payload);
@@ -103,7 +115,7 @@ const ChatActive = ({
     textareaRef.current?.focus({ preventScroll: true });
   };
 
-  const handleImageUpload = (event) => {
+  const handleImageUpload = async (event) => {
     const file = event.target.files?.[0];
     if (!file || isBotLoading) return;
     setUploadError(null);
@@ -113,24 +125,21 @@ const ChatActive = ({
       return;
     }
     setIsUploading(true);
+    const generation = uploadGeneration.current;
 
-    // Read into a data URL locally; uploading to the model happens only when Send is pressed.
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result;
-      setUploadedImage({ dataUrl: base64, name: file.name });
-      setTimeout(() => textareaRef.current?.focus(), 0);
-    };
-    reader.onerror = () => {
-      setUploadError('The image could not be read. Please try another file.');
-      setIsUploading(false);
+    // Decode/re-encode locally to strip metadata and reduce size; upload only on Send.
+    try {
+      const prepared = await prepareImageUpload(file);
+      if (generation !== uploadGeneration.current) return;
+      setUploadedImage(prepared);
+      textareaRef.current?.focus({ preventScroll: true });
+    } catch {
+      if (generation !== uploadGeneration.current) return;
+      setUploadError('Choose a readable image up to 512 KB, 8192 pixels per side, and 16 megapixels.');
+    } finally {
+      if (generation === uploadGeneration.current) setIsUploading(false);
       if (event?.target) event.target.value = '';
-    };
-    reader.onloadend = () => {
-      setIsUploading(false);
-      if (event?.target) event.target.value = '';
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -170,10 +179,12 @@ const ChatActive = ({
         {uploadedImage && (
           <div className="chat-active-attachment">
             <div className="attachment-thumb">
-              <img src={uploadedImage.dataUrl} alt={uploadedImage.name || 'Uploaded image'} />
+              <img src={uploadedImage.dataUrl} width={uploadedImage.width} height={uploadedImage.height} alt={uploadedImage.description || 'Preview of your image attachment'} />
             </div>
             <div className="attachment-meta">
               <p className="attachment-name">{uploadedImage.name || 'Image attached'}</p>
+              <label>Image description (optional)<input maxLength={150} value={uploadedImage.description || ''} onChange={event => setUploadedImage(previous => ({ ...previous, description: event.target.value.replace(/[\r\n]/g, ' ') }))} /></label>
+              <small>Images are resized and metadata is removed. Animated images use one frame.</small>
               <button
                 type="button"
                 className="attachment-remove"
@@ -189,7 +200,7 @@ const ChatActive = ({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/png,image/jpeg,image/webp,image/gif"
             onChange={handleImageUpload}
             disabled={isBotLoading || isUploading}
             style={{ display: 'none' }}

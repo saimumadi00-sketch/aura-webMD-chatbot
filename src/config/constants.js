@@ -5,7 +5,7 @@
 // VITE_ values are bundled into browser JavaScript and must contain no private secrets.
 import { externalPortalUrl } from '../utils/portal-url';
 
-export const DOCTORS_PORTAL_URL = externalPortalUrl(import.meta.env.VITE_DOCTORS_PORTAL_URL);
+export const DOCTORS_PORTAL_URL = externalPortalUrl(import.meta.env.VITE_DOCTORS_PORTAL_URL, import.meta.env.PROD);
 
 export const FIREBASE_CONFIG = {
   apiKey: import.meta.env.VITE_FB_API_KEY,
@@ -37,7 +37,7 @@ export const APP_CONFIG = {
 
 export const SAFETY_MESSAGES = {
   CRISIS_RESPONSE:
-    "I hear that you're in a lot of pain, and I want you to get the help you deserve. I'm not equipped to help with this, but please reach out to the 988 Suicide & Crisis Lifeline by calling or texting 988. They are available 24/7, free, and confidential.",
+    "If you are in immediate danger, contact local emergency services and a trusted person nearby. Aura does not provide emergency support.",
   DISCLAIMER:
-    'This is an AI, not a therapist. If you are in a crisis, please call or text 988 immediately.',
+    'Aura is an AI companion, not a therapist or emergency service. In immediate danger, contact local emergency services.',
 };

@@ -63,7 +63,7 @@ export default function Welcome({ onGuest, onLogin, onRegister, theme = "dark", 
       >
         {isDark ? <Sun size={18} strokeWidth={2.4} /> : <Moon size={18} strokeWidth={2.4} />}
         <span className="nav-label nav-label--persistent">
-          {isDark ? "Light" : "Dark"}
+          {isDark ? "Light mode" : "Dark mode"}
         </span>
       </button>
 
@@ -80,7 +80,7 @@ export default function Welcome({ onGuest, onLogin, onRegister, theme = "dark", 
         id="container"
       >
         <div className="form-container sign-up-container" inert={!isRightPanel}>
-          <form onSubmit={handleSignUpSubmit}>
+          <form onSubmit={handleSignUpSubmit} aria-describedby={error ? 'signup-error' : undefined}>
             <h1>Create Account</h1>
             <span>Sign up with your email</span>
             <input
@@ -101,13 +101,13 @@ export default function Welcome({ onGuest, onLogin, onRegister, theme = "dark", 
               value={signUp.password}
               onChange={(e) => setSignUp({ ...signUp, password: e.target.value })}
             />
-            {error && <p className="form-error">{error}</p>}
+            {error && <p id="signup-error" className="form-error" role="alert">{error}</p>}
             <button type="submit" disabled={isLoading}>Sign Up</button>
           </form>
         </div>
 
         <div className="form-container sign-in-container" inert={isRightPanel}>
-          <form onSubmit={handleSignInSubmit}>
+          <form onSubmit={handleSignInSubmit} aria-describedby={error ? 'signin-error' : undefined}>
             <h1>Sign in</h1>
             <span>Continue with your email</span>
             <input
@@ -124,8 +124,8 @@ export default function Welcome({ onGuest, onLogin, onRegister, theme = "dark", 
             />
             <button className="welcome-reset" type="button" disabled={isLoading} onClick={async () => { setIsLoading(true); try { await onResetPassword(signIn.email); } finally { setIsLoading(false); } }}>Forgot your password?</button>
             {notice && <p role="status">{notice}</p>}
-            {error && <p className="form-error">{error}</p>}
-            <button type="submit" disabled={isLoading}>Sign In</button>
+            {error && <p id="signin-error" className="form-error" role="alert">{error}</p>}
+            <button type="submit" disabled={isLoading}>Sign in</button>
             <button type="button" disabled={isLoading} className="guest-btn" onClick={handleGuest}>
               Continue as guest
             </button>

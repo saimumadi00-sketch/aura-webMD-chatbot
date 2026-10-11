@@ -1,0 +1,21 @@
+.public-info { min-height: 100dvh; color: var(--aura-text); background: var(--aura-bg); }
+.public-info header { max-width: 900px; margin: auto; padding: 24px; display: flex; align-items: center; justify-content: space-between; }
+.public-info main { max-width: 760px; margin: auto; padding: 24px 24px 64px; }
+.public-info nav { display: flex; gap: 24px; margin-bottom: 36px; flex-wrap: wrap; }
+.public-info h1 { font-size: clamp(28px, 5vw, 42px); margin-bottom: 24px; }
+.public-info h2 { font-size: 20px; margin: 32px 0 12px; }
+.public-info p { line-height: 1.75; margin: 14px 0; overflow-wrap: anywhere; }
+.public-info a { color: var(--aura-text); text-decoration: underline; text-underline-offset: 4px; }
+.analytics-consent { max-width: 540px; text-align: left; color: var(--aura-text); }
+.analytics-consent summary { cursor: pointer; padding: 8px 0; }
+.analytics-consent p { line-height: 1.6; margin: 12px 0; }
+.analytics-consent div { display: flex; flex-wrap: wrap; gap: 8px; }
+.analytics-consent button { border: 1px solid var(--aura-border); border-radius: 8px; padding: 10px 14px; background: var(--aura-panel); color: var(--aura-text); cursor: pointer; font: inherit; }
+.analytics-consent button[aria-pressed="true"] { border-color: var(--aura-text); }
+.route-loading { padding: 48px 24px; color: var(--aura-text); }
+.attachment-meta label { display: grid; gap: 4px; font-size: 12px; }
+.attachment-meta input { max-width: 100%; border: 1px solid var(--aura-border); background: var(--aura-panel); color: var(--aura-text); border-radius: 6px; padding: 6px; }
+.attachment-meta small { display: block; margin-top: 6px; font-size: 11px; color: var(--aura-muted); }
+
+.landing .landing-footer-inner { flex-wrap: wrap; align-items: flex-start; }
+.landing-footer nav { display: flex; gap: 16px; flex-wrap: wrap; }

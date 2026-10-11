@@ -67,7 +67,7 @@ export default function AuthForm({
           <p className="auth-subtext">{isRegister ? 'Create an account to save your conversations and preferences.' : 'A quiet space to pick up where you left off.'}</p>
           <div className="auth-divider">Continue with email</div>
 
-          <form onSubmit={handleSubmit} className="auth-form">
+          <form onSubmit={handleSubmit} className="auth-form" aria-describedby={error ? 'auth-error' : undefined}>
             <label>
               Email
               <input
@@ -109,7 +109,7 @@ export default function AuthForm({
 
             {!isRegister && <button className="auth-link auth-reset" type="button" disabled={isLoading} onClick={async () => { setIsLoading(true); try { await onResetPassword(email); } finally { setIsLoading(false); } }}>Forgot password?</button>}
             {notice && <p role="status">{notice}</p>}
-            {error && <p className="auth-error">{error}</p>}
+            {error && <p id="auth-error" className="auth-error" role="alert">{error}</p>}
 
             <button type="submit" disabled={isLoading} className="auth-primary">
               {isLoading

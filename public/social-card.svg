@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs><radialGradient id="mesh"><stop stop-color="#005dcc" stop-opacity=".8"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient><radialGradient id="pink"><stop stop-color="#7928ca" stop-opacity=".7"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient></defs>
+  <rect width="1200" height="630" fill="#0a0a0a"/><ellipse cx="960" cy="230" rx="500" ry="440" fill="url(#mesh)"/><ellipse cx="1040" cy="550" rx="450" ry="400" fill="url(#pink)"/>
+  <g fill="#ededed" font-family="Arial,Helvetica,sans-serif"><text x="90" y="135" font-size="42" font-weight="600">Aura</text><text x="90" y="310" font-size="78" font-weight="600">A space to reflect.</text><text x="94" y="385" font-size="30" fill="#bdbdbd">A supportive AI companion for everyday worries,</text><text x="94" y="428" font-size="30" fill="#bdbdbd">small goals, and a moment to check in.</text></g>
+  <path d="M94 507h1012" stroke="#454545"/><text x="94" y="556" fill="#a1a1a1" font-family="Arial,Helvetica,sans-serif" font-size="22">A little more understood. A little more you.</text>
+</svg>

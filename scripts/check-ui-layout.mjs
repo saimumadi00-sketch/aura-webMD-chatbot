@@ -28,7 +28,7 @@ const checkThemeParity = async label => {
 };
 try{
  await send('Page.enable');await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});await send('Network.enable');await send('Network.setBlockedURLs',{urls:['*firestore.googleapis.com*','*identitytoolkit.googleapis.com*','*/api/openai/*']});
- await send('Page.navigate', {url: appUrl + '#/'}); await new Promise(r=>setTimeout(r,2000));
+ await send('Page.navigate', {url: appUrl}); await new Promise(r=>setTimeout(r,2000));
  for (let attempt = 0; attempt < 30; attempt++) {
   if (await evaluate('document.querySelector("#root")?.textContent.trim().length > 0 && (document.body.classList.contains("theme-dark") || document.body.classList.contains("theme-light"))')) break;
   await wait();
@@ -42,7 +42,7 @@ try{
  for(const width of [320,390,768,1366]){
   await send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:false});
   for(const route of ['/','/login','/register','/welcome','/billing']){
-   await evaluate(`location.hash=${JSON.stringify('#'+route)};window.scrollTo(0,0)`);await wait();
+   await evaluate(`history.pushState(null,"",${JSON.stringify(route)});window.dispatchEvent(new PopStateEvent("popstate"));window.scrollTo(0,0)`);await wait();
    await check(`${route} fits ${width}px`, 'document.documentElement.scrollWidth<=innerWidth && document.querySelector("#root").textContent.trim().length>0 && !document.querySelector("vite-error-overlay")');
    await checkThemeParity(`${route} ${width}px`);
    if (route !== '/welcome') {
@@ -53,7 +53,7 @@ try{
     await click('document.querySelector(".theme-toggle")');
    }
   }
-  await evaluate('location.hash="#/welcome";window.scrollTo(0,0)');await wait();
+  await evaluate('history.pushState(null,"","/welcome");window.dispatchEvent(new PopStateEvent("popstate"));window.scrollTo(0,0)');await wait();
   await click('document.querySelector(".register-cta")');
   await check(`welcome registration visible ${width}px`,bounds('.sign-up-container input'));
   await check(`inactive form cannot receive focus ${width}px`,'document.querySelector(".sign-in-container").inert');

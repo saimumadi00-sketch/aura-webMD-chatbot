@@ -13,8 +13,8 @@ const buildFallbackResponse = (messages = [], overrideText) => {
   const text =
     overrideText ??
     (lastUserText
-      ? `I can't reach the AI service right now, but I hear you saying "${lastUserText}". Take a breath and let me know what you need next.`
-      : "I can't reach the AI service right now, but I'm here with you. Let's take this moment together.");
+      ? "AI is paused or unavailable. This tool did not generate a result. Please try later."
+      : "AI is paused or unavailable. This tool did not generate a result. Please try later.");
 
   return {
     choices: [

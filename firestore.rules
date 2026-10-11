@@ -1,11 +1,37 @@
-// Each signed-in user owns their messages and preferences; all other paths are denied.
 rules_version = '2';
 service cloud.firestore {
-match /databases/{database}/documents {
-// Each user can only access their own data under this path
-match /users/{userId}/{document=**} {
-// Require a signed-in identity matching the owner segment for all nested documents.
-allow read, write: if request.auth != null && request.auth.uid == userId;
-}
-}
+  match /databases/{database}/documents {
+    function owner(userId) { return request.auth != null && request.auth.uid == userId; }
+    function validMessage() {
+      let data = request.resource.data;
+      return data.keys().hasAll(['text', 'sender', 'createdAt']) && data.keys().hasOnly(['text', 'sender', 'createdAt'])
+        && data.text is string && data.text.size() > 0 && data.text.size() <= 750000
+        && data.sender in ['user', 'bot'] && data.createdAt is timestamp && data.createdAt == request.time;
+    }
+    function validPreferences() {
+      let data = request.resource.data;
+      return data.keys().hasAll(['persona', 'tone', 'brevity', 'model', 'creativity', 'verbosity', 'customInstructions', 'memoryEnabled', 'webAccess', 'codeExecution', 'dataSharing', 'historyRetention', 'notifications'])
+        && data.keys().hasOnly(['persona', 'tone', 'brevity', 'model', 'creativity', 'verbosity', 'customInstructions', 'memoryEnabled', 'webAccess', 'codeExecution', 'dataSharing', 'historyRetention', 'notifications'])
+        && data.persona is string && data.persona.size() <= 64
+        && data.tone in ['empathetic', 'friendly', 'professional', 'direct']
+        && data.brevity in ['concise', 'balanced', 'detailed'] && data.model in ['fast', 'balanced']
+        && data.creativity is int && data.creativity >= 0 && data.creativity <= 100
+        && data.verbosity is int && data.verbosity >= 0 && data.verbosity <= 100
+        && data.customInstructions is string && data.customInstructions.size() <= 2000
+        && data.memoryEnabled == false && data.webAccess == false && data.codeExecution == false
+        && data.dataSharing == false && data.historyRetention == 0
+        && data.notifications is map && data.notifications.keys().hasAll(['email', 'push', 'productUpdates'])
+        && data.notifications.keys().hasOnly(['email', 'push', 'productUpdates'])
+        && data.notifications.email == false && data.notifications.push == false && data.notifications.productUpdates == false;
+    }
+    match /users/{userId}/messages/{messageId} {
+      allow read, delete: if owner(userId);
+      allow create, update: if owner(userId) && validMessage();
+    }
+    match /users/{userId}/preferences/settings {
+      allow read, delete: if owner(userId);
+      allow create, update: if owner(userId) && validPreferences();
+    }
+    // Everything else is denied, including arbitrary nested user documents.
+  }
 }

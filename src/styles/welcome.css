@@ -1,24 +1,32 @@
-/* A single, stable card replaces the sliding panels and animated background. */
-.welcome-page { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 100px 20px 40px; color: var(--aura-text); background: var(--aura-bg); font-family: var(--aura-font); }
+/* A single, stable card over a soft mesh backdrop replaces the sliding panels and animated background. */
+.welcome-page { position: relative; isolation: isolate; overflow: hidden; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 100px 20px 40px; color: var(--aura-text); background: var(--aura-bg); font-family: var(--aura-font); }
+.welcome-page::before { content: ''; position: absolute; z-index: -1; inset: 0 0 auto; height: 520px; background: var(--aura-mesh); filter: blur(56px); opacity: calc(var(--aura-mesh-opacity) * 0.7); mask-image: radial-gradient(ellipse 50% 50% at 50% 45%, #000 35%, transparent 100%); pointer-events: none; }
 .welcome-page .welcome-bg-layer, .welcome-page .overlay-container { display: none; }
-.welcome-page .nav-btn { position: absolute; top: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 10px 14px; border: 1px solid var(--aura-border); border-radius: 10px; background: var(--aura-panel); color: var(--aura-text); font-size: 13px; cursor: pointer; }
+.welcome-page .nav-btn { position: absolute; top: 24px; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px solid var(--aura-border); border-radius: var(--aura-radius-pill); background: var(--aura-panel); color: var(--aura-text); font-family: inherit; font-size: 14px; font-weight: 500; letter-spacing: -0.28px; cursor: pointer; }
+.welcome-page .nav-btn:hover { background: var(--aura-soft); }
 .welcome-page #backBtn { left: 24px; }
-.welcome-page #themeToggle { right: 24px; width: 96px; }
-.welcome-page .register-cta { order: 2; margin-top: 22px; color: var(--aura-highlight); font-size: 14px; background: none; border: 0; cursor: pointer; }
-.welcome-page .welcome-container { width: min(440px, 100%); padding: 36px; border: 1px solid var(--aura-border); border-radius: 16px; background: var(--aura-panel); box-shadow: var(--aura-shadow); }
+.welcome-page #themeToggle { right: 24px; width: auto; white-space: nowrap; }
+.welcome-page .register-cta { order: 2; margin-top: 24px; color: var(--aura-highlight); font-family: inherit; font-size: 14px; background: none; border: 0; cursor: pointer; }
+.welcome-page .register-cta:hover { text-decoration: underline; text-underline-offset: 3px; }
+.welcome-page .welcome-container { width: min(440px, 100%); padding: 32px; border: 0; border-radius: var(--aura-radius-lg); background: var(--aura-panel); box-shadow: var(--aura-shadow-modal); }
 .welcome-page .form-container { width: 100%; }
 .welcome-page .sign-up-container { display: none; }
 .welcome-page .right-panel-active .sign-up-container { display: block; }
 .welcome-page .right-panel-active .sign-in-container { display: none; }
 .welcome-page form { display: flex; flex-direction: column; gap: 16px; }
-.welcome-page form::before { content: 'Aura'; font-size: 23px; font-weight: 750; letter-spacing: -0.04em; color: var(--aura-highlight); margin-bottom: 12px; }
-.welcome-page h1 { font-size: 30px; letter-spacing: -0.04em; line-height: 1.2; font-weight: 700; }
-.welcome-page form > span { color: var(--aura-muted); font-size: 14px; margin-bottom: 8px; }
-.welcome-page input { width: 100%; min-width: 0; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--aura-border); background: var(--aura-soft); color: var(--aura-text); font-size: 16px; }
-.welcome-page form > button { padding: 12px; border: 1px solid transparent; border-radius: 10px; font-size: 14px; font-weight: 600; background: var(--aura-brand); color: white; cursor: pointer; }
+.welcome-page form::before { content: 'Aura'; font-size: 20px; font-weight: 600; letter-spacing: -0.6px; color: var(--aura-text); margin-bottom: 16px; }
+.welcome-page h1 { font-size: 32px; letter-spacing: -1.28px; line-height: 40px; font-weight: 600; }
+.welcome-page form > span { color: var(--aura-muted); font-size: 16px; line-height: 24px; margin-bottom: 8px; }
+.welcome-page input { width: 100%; min-width: 0; height: 40px; padding: 0 12px; border-radius: var(--aura-radius-sm); border: 1px solid var(--aura-border); background: var(--aura-panel); color: var(--aura-text); font-family: inherit; font-size: 16px; }
+.welcome-page input::placeholder { color: var(--aura-faint); }
+.welcome-page input:focus { outline: none; border-color: var(--aura-border-strong); box-shadow: 0 0 0 3px color-mix(in srgb, var(--aura-text) 12%, transparent); }
+.welcome-page form > button { min-height: 48px; padding: 0 24px; border: 1px solid transparent; border-radius: var(--aura-radius-pill); font-family: inherit; font-size: 16px; font-weight: 500; background: var(--aura-brand); color: var(--aura-on-brand); cursor: pointer; }
+.welcome-page form > button:hover:not(:disabled) { background: var(--aura-brand-hover); }
 .welcome-page form > .guest-btn { background: var(--aura-panel); color: var(--aura-text); border-color: var(--aura-border); }
-.welcome-page form > .welcome-reset { align-self: flex-end; padding: 0; color: var(--aura-highlight); font-size: 13px; background: none; border: 0; }
+.welcome-page form > .guest-btn:hover:not(:disabled) { background: var(--aura-soft); }
+.welcome-page form > .welcome-reset { align-self: flex-end; min-height: 0; padding: 0; color: var(--aura-highlight); font-size: 14px; font-weight: 400; background: none; border: 0; }
+.welcome-page form > .welcome-reset:hover:not(:disabled) { background: none; text-decoration: underline; text-underline-offset: 3px; }
 .welcome-page form > button:disabled { opacity: 0.6; cursor: wait; }
-.welcome-page .form-error { color: var(--aura-danger); font-size: 13px; line-height: 1.5; }
-.welcome-page [role='status'] { color: var(--aura-text); font-size: 13px; line-height: 1.5; }
+.welcome-page .form-error { padding: 8px 12px; border-radius: var(--aura-radius-sm); background: var(--aura-danger-soft); color: var(--aura-danger); font-size: 14px; line-height: 20px; }
+.welcome-page [role='status'] { color: var(--aura-text); font-size: 14px; line-height: 20px; }
 @media (max-width: 480px) { .welcome-page .welcome-container { padding: 24px; } .welcome-page #backBtn { left: 20px; } .welcome-page #themeToggle { right: 20px; } }

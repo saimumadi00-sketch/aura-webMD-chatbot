@@ -97,6 +97,7 @@ export const useChat = (user, userId, isGuest, preferences) => {
   const handleSendMessage = async (messageText) => {
     const text = messageText?.trim();
     if (!text || busyRef.current || isBotLoading) return;
+    if (new TextEncoder().encode(text).length > 750000) { setChatError('This message is too large. Shorten the text or choose a smaller image.'); return; }
     const operation = beginOperation();
     if (!operation) return;
     const controller = new AbortController();
@@ -157,7 +158,7 @@ export const useChat = (user, userId, isGuest, preferences) => {
       if (!replyText.trim()) throw new Error('Empty reply');
       generated = true;
       await persistReply(replyText);
-    } catch {
+    } catch (error) {
       clearTimeout(refreshTimer);
       if (isCurrentOperation(operation)) {
         let saveFailed = generated;
@@ -167,7 +168,7 @@ export const useChat = (user, userId, isGuest, preferences) => {
         }
         if (saveFailed) setChatError('The reply is visible but could not be saved. Check your connection.');
         else if (!controller.signal.aborted) {
-          setChatError(replyText ? 'The response was interrupted. You can continue from here.' : 'Your message could not be completed. Check your connection and try again.');
+          setChatError(replyText ? 'The response was interrupted. You can continue from here.' : error?.publicMessage || 'Your message could not be completed. Check your connection and try again.');
           if (!replyText) setCurrentMessage(draft => draft || text);
         }
       }

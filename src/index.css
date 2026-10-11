@@ -8,8 +8,9 @@
 /* Theme follows the application's toggle rather than the operating system alone. */
 @custom-variant dark (&:where(.dark, .dark *));
 body {
-  background-color: #050507;
+  background-color: var(--aura-bg);
+  color: var(--aura-text);
   margin: 0;
-  font-family: sans-serif;
+  font-family: var(--aura-font);
   -webkit-font-smoothing: antialiased;
 }

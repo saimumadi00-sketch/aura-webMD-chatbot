@@ -17,7 +17,8 @@ Copy-Item .env.example .env
 ```
 
 If `.env` already exists, keep it and update its values instead of copying over it.
-Set `OPENAI_API_KEY` to enable AI replies. Without it, chat returns fallback text.
+AI stays paused until `OPENAI_API_KEY`, a positive `AI_DAILY_BUDGET_USD`, and
+`AI_QUOTA_SECRET` (at least 32 random characters) are configured. Guest access remains available.
 Firebase is optional for guest use; configure the `VITE_FB_*` values and enable
 email/password authentication in Firebase to use accounts.
 
@@ -39,6 +40,12 @@ On other shells, `npm` can be used in place of `npm.cmd`.
 | `VITE_DOCTORS_PORTAL_URL` | Optional external portal URL; leave blank until the PHP website is hosted |
 | `APP_ORIGIN` | Exact website origin in production, such as `https://example.com` |
 | `API_PORT` | Standalone API port; defaults to `3001` |
+| `AI_DAILY_BUDGET_USD` | Required positive daily cap; blank keeps AI paused |
+| `AI_QUOTA_SECRET` | Private stable random secret used to hash network addresses |
+| `AI_USAGE_FILE` | Durable private usage ledger, default `private/ai-usage.json` |
+| `AI_TRUST_LOOPBACK_PROXY` | Enable only behind a loopback proxy that overwrites `X-Real-IP` |
+| `VITE_PUBLIC_SITE_URL` | Public HTTPS origin used to generate canonical links and sitemap |
+| `VITE_OPERATOR_NAME`, `VITE_SUPPORT_EMAIL`, `VITE_PRIVACY_EMAIL` | Public operator and contact details |
 
 Keep `.env` private. Git ignores it, generated builds, dependencies, and private files. Variables prefixed with `VITE_` are public browser configuration: never
 use that prefix for private API keys. The frontend calls `/api/openai/...`; the
@@ -55,6 +62,7 @@ server attaches the OpenAI credential and uses fixed upstream endpoints.
 | `npm.cmd run test:ui:preferences` | Check keyboard sliders, draft preservation, and guest preference save/retry behavior |
 | `npm.cmd run test:ui:navigation` | Check page Back buttons, browser history, direct-link fallbacks, and guest session preservation |
 | `npm.cmd run test:ui:streaming` | Check partial replies, Stop, draft preservation, and scrolling during generation |
+| `npm.cmd run test:ui:prelaunch` | Check consent, public pages, metadata, optimized uploads, and upload cancellation |
 | `npm.cmd run lint` | ESLint checks for `src` |
 | `npm.cmd run build` | Build the React frontend into `dist` |
 | `npm.cmd run preview` | Local build preview with API middleware |
@@ -79,13 +87,54 @@ Set `AURA_APP_URL` on the PHP host to enable its link back to the main site.
 2. Serve `dist` with your web server. Deploy the doctors website separately.
 3. Start the API with `npm.cmd run start:api`, providing private credentials
    through server environment variables or a private root `.env`.
-4. Set `APP_ORIGIN` to the exact public origin, including the scheme and any port.
+4. Set `APP_ORIGIN` to the exact public HTTPS origin without a trailing slash.
 5. Reverse-proxy `/api/openai/` to `http://127.0.0.1:3001`, preserving the path.
+
+Use [deploy/nginx.conf.example](deploy/nginx.conf.example) inside your HTTPS
+server configuration. It serves prerendered public pages, a private app shell,
+and a real HTTP 404 for unknown URLs. Normal paths require these rewrites;
+old `#/...` bookmarks are converted in the browser. Do not host `.env`,
+`private/`, or source files under the public document root. This example has
+not been deployed or validated against your hosting service.
+
+AI quotas are 3 requests per minute and 10 per UTC day per network IP,
+including signed-in users; people behind the same network share limits.
+The API additionally reserves $0.35 for every standard-model request and
+$0.025 for every mini-model request before forwarding, conservatively covering
+the allowed models' full 128k input context and 512 output tokens at reviewed
+pricing. Reservations are not refunded on failure. This intentionally reaches
+the configured budget earlier than actual spending. Review these amounts in
+`server/usage-budget.js` whenever provider pricing or models change; configure
+provider-side project restrictions and alerts as well.
+
+Every API worker must share the same persistent filesystem ledger and quota
+secret. Separate replica disks do not provide one global cap. Storage errors,
+corrupt ledgers and a leftover lock pause AI. After an unexpected crash, stop
+all API workers, inspect the ledger, and remove only the empty `.lock` directory
+before restarting; never delete/reset the ledger during an active UTC day.
+Back up the ledger. Logs contain event/status/endpoint/random request IDs,
+never chat text, tokens, emails or raw IP addresses.
+
+Analytics initializes only after browser opt-in; withdrawal disables collection
+and removes same-site Analytics cookies. Consent can be changed from the landing
+footer, Privacy information, or Preferences → Data & Privacy. Before enabling
+`VITE_FB_MEASUREMENT_ID`, disable Google Analytics enhanced measurement
+(especially form/search tracking) in the property. Google Fonts still loads
+from Google; document or self-host it before finalizing your privacy policy.
+
+Set the public launch details before building. Until a valid public HTTPS origin
+is supplied, the build omits sitemap and canonical URLs instead of publishing
+an invented domain. Privacy/usage pages describe current behavior and explicitly
+identify unfinished operator-specific policies; they are not finalized legal terms.
+Launch countries, provider retention, deletion requests, and the operator's
+retention policy still need confirmation. Enable Firebase email enumeration
+protection, review Authentication quotas and abuse protection, deploy the schema
+rules, and validate them against the Firebase emulator/real project before launch.
 
 Static-only hosting cannot execute the AI API. The proxy limits
 requests and concurrent upstream calls, caps output tokens, rejects other
-origins, and hides upstream errors. These process-wide limits preserve guest
-access; they do not authenticate users or enforce individual billing quotas.
+origins, and hides upstream errors. Persistent IP quotas and budget reservations
+preserve guest access; these are shared network limits, not per-account billing.
 
 ## Code map
 
@@ -99,7 +148,8 @@ gRPC requirement. Review `npm.cmd audit` before choosing targeted upgrades;
 
 | Path | Responsibility |
 | --- | --- |
-| `src/components/App.jsx` | Hash routes and page composition |
+| `src/components/App.jsx` | Public path routes, metadata, scroll restoration and session loading |
+| `src/components/SessionApp.jsx` | Persistent account/guest session and private route composition |
 | `src/hooks/useAuth.js` | Account and guest state |
 | `src/hooks/useAura.js` | Preferences, theme, AI tools, and PDF export |
 | `src/hooks/useChat.js` | Message lifecycle, archives, and portal handoff |
@@ -111,7 +161,7 @@ gRPC requirement. Review `npm.cmd audit` before choosing targeted upgrades;
 | `src/utils/helpers.js` | Chat formatting, image parsing, prompts, and retries |
 | `server/openai-proxy.js` | Server-only credentials and upstream request boundary |
 | `server/index.js` | Standalone API entry point |
-| `scripts/` | Portal copying and optional fine-tuning data preparation |
+| `scripts/` | Public-page prerendering and local browser checks |
 
 ## Current behavior and remaining integrations
 
@@ -160,6 +210,13 @@ doctors website README.
 The browser accepts PNG/JPEG/WebP/GIF attachments up to 512 KB. Recent AI
 context is bounded to avoid oversized requests; long chats may omit older
 messages from the model context while retaining them in the UI/export.
+The API also checks decoded attachment size, matching format headers, and image
+dimensions (up to 8,192 pixels per side and 16 million pixels total). These are
+header checks, not a full image decoder. API bodies must arrive within ten seconds
+and remain below 2 MiB; slow uploads receive HTTP 408 and release their request slot.
+Production reverse proxies should enforce their own upload deadlines and connection
+limits. Persistent IP quotas and conservative spending reservations are enforced
+separately by `server/usage-budget.js`; per-account billing is not implemented.
 
 ## Browser layout checks
 
@@ -179,3 +236,29 @@ geometry, typography, and shadow shape, and checks that switching themes keeps
 the settings draft. Motion is reduced during these deterministic comparisons.
 Set `UI_BASE_URL` if Vite uses a different port and `UI_DEBUG_URL`
 if your browser debugging endpoint differs. Close the test browser afterward.
+
+## Prelaunch verification — 2026-10-12
+
+Local API fixes are verified: both endpoints make zero provider calls when the
+budget is absent; concurrent workers cannot over-reserve a shared ledger; limits
+survive guard recreation; equivalent IP encodings share a quota; corrupt storage
+fails closed. Client system messages cannot replace the server-owned instruction
+message. Legitimate Unicode requests, image attachments, tools and streamed
+responses retain their contracts in isolated tests.
+
+`npm.cmd test` passes 36 tests. `npm.cmd run lint`, `npm.cmd run build`, and the
+navigation, preferences, responsive layout, chat/pricing, streaming, and prelaunch
+browser checks pass. Public HTML, private noindex markup, sitemap generation and
+canonical URLs were checked with a test origin, then the build was restored to
+the actual configuration. No provider requests or live account writes were used.
+
+Firebase schema enforcement verification is **blocked**: the Firebase emulator
+test package and Java runtime are unavailable here, and the local rules were not
+deployed. The client migration is tested, but that does not validate the deployed
+rule engine. Production TLS, response headers, HTTP 404 status, authentication
+abuse settings, provider retention, and the reverse proxy remain unverified.
+Public domain, operator identity, support/privacy contact details, launch countries,
+and finalized privacy/usage terms still need operator input. AI is intentionally
+paused until its budget and quota secret are configured. Crash-left quota locks
+require the documented manual recovery; removing them automatically could reopen
+spending during a concurrent reservation.

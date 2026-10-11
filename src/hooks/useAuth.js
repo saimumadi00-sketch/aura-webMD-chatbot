@@ -7,6 +7,15 @@ import { auth, isFirebaseEnabled } from "../services/firebase";
 import { useEffect, useState } from "react";
 import FirebaseService from "../services/firebase";
 
+const publicAuthError = (error, action) => {
+    if (error?.code === 'auth/network-request-failed') return 'Check your connection and try again.';
+    if (error?.code === 'auth/too-many-requests') return 'Too many attempts. Please wait and try again.';
+    if (action === 'login') return 'Unable to sign in. Check your email and password and try again.';
+    if (action === 'register') return 'Unable to create an account. Try again or use sign-in or password recovery.';
+    if (action === 'logout') return 'Unable to sign out. Please try again.';
+    return 'Unable to send password reset instructions. Please try again.';
+};
+
 export const useAuth = () => {
     const [user, setUser] = useState(null); // { uid, displayName, email, isGuest? }
     const [userId, setUserId] = useState(null);
@@ -76,7 +85,7 @@ export const useAuth = () => {
             setView("chat");
             return true;
         } catch (e) {
-            setError(e.message);
+            setError(publicAuthError(e, 'register'));
             return false;
         }
     };
@@ -99,7 +108,7 @@ export const useAuth = () => {
             setView("chat");
             return true;
         } catch (e) {
-            setError(e.message);
+            setError(publicAuthError(e, 'login'));
             return false;
         }
     };
@@ -115,7 +124,7 @@ export const useAuth = () => {
             setView("welcome");
             return true;
         } catch (e) {
-            setError(e.message);
+            setError(publicAuthError(e, 'logout'));
             return false;
         }
     };
@@ -124,11 +133,17 @@ export const useAuth = () => {
         setError(null);
         setNotice(null);
         if (!email?.trim()) { setError("Enter your email address first."); return false; }
+        if (!isFirebaseEnabled) { setError('Password recovery is unavailable because Firebase is not configured.'); return false; }
+        const resetNotice = 'If an account exists for this email, you will receive password reset instructions.';
         try {
             await FirebaseService.auth.resetPassword(email.trim());
-            setNotice("If an account exists for this email, you will receive password reset instructions.");
+            setNotice(resetNotice);
             return true;
-        } catch (e) { setError(e.message); return false; }
+        } catch (e) {
+            if (e?.code === 'auth/user-not-found') { setNotice(resetNotice); return true; }
+            setError(publicAuthError(e, 'reset'));
+            return false;
+        }
     };
 
     return {

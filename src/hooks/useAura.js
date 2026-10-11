@@ -3,7 +3,6 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { jsPDF } from "jspdf";
 import FirebaseService, { isFirebaseEnabled } from "../services/firebase";
 import OpenAIService from "../services/openai-api";
 import { useAuth } from "./useAuth";
@@ -31,6 +30,21 @@ const DEFAULT_PREFERENCES = {
 const detectSystemTheme = () => {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return "dark";
   return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+};
+
+const normalizePreferences = (value = {}) => {
+  const source = value && typeof value === 'object' ? value : {};
+  const pick = (key, options) => options.includes(source[key]) ? source[key] : DEFAULT_PREFERENCES[key];
+  const slider = key => Number.isFinite(source[key]) ? Math.round(Math.max(0, Math.min(100, source[key]))) : 50;
+  return {
+    ...DEFAULT_PREFERENCES,
+    persona: typeof source.persona === 'string' ? source.persona.slice(0, 64) : 'supportive',
+    tone: pick('tone', ['empathetic', 'friendly', 'professional', 'direct']),
+    brevity: pick('brevity', ['concise', 'balanced', 'detailed']),
+    model: source.model === 'reasoning' ? 'balanced' : pick('model', ['fast', 'balanced']),
+    creativity: slider('creativity'), verbosity: slider('verbosity'),
+    customInstructions: typeof source.customInstructions === 'string' ? source.customInstructions.slice(0, 2000) : '',
+  };
 };
 
 const getStoredJSON = (key, fallback) => {
@@ -64,7 +78,7 @@ export const useAura = () => {
   // Device-local guest settings initialize the session before any signed-in subscription arrives.
   const [preferences, setPreferences] = useState(() => {
     const stored = getStoredJSON(GUEST_PREF_KEY, null);
-    return { ...DEFAULT_PREFERENCES, ...(stored || {}) };
+    return normalizePreferences(stored);
   });
   const [preferencesError, setPreferencesError] = useState(null);
   const [theme, setTheme] = useState(() =>
@@ -105,7 +119,7 @@ export const useAura = () => {
     setPreferencesError(null);
     if (!isGuest && userId) { setPreferences(DEFAULT_PREFERENCES); return; }
     const stored = getStoredJSON(GUEST_PREF_KEY, null);
-    setPreferences(stored ? { ...DEFAULT_PREFERENCES, ...stored } : DEFAULT_PREFERENCES);
+    setPreferences(normalizePreferences(stored));
   }, [isGuest, userId]);
   
   // --- Firestore subscriptions (prefs) for non-guest ---
@@ -118,7 +132,7 @@ export const useAura = () => {
       userId,
       (doc) => {
         if (!active || session !== preferenceSession.current) return;
-        setPreferences(doc.exists() ? { ...DEFAULT_PREFERENCES, ...doc.data() } : DEFAULT_PREFERENCES);
+        setPreferences(normalizePreferences(doc.exists() ? doc.data() : {}));
       },
       () => {
         if (active && session === preferenceSession.current) setPreferencesError("Could not load preferences. Check your connection and Firestore permissions.");
@@ -134,7 +148,7 @@ export const useAura = () => {
   // Persist before applying edits so failed writes reach the UI's error handler.
   const handleSavePreferences = async (newPrefs = {}) => {
     const session = preferenceSession.current;
-    const updated = { ...DEFAULT_PREFERENCES, ...preferences, ...newPrefs };
+    const updated = normalizePreferences({ ...preferences, ...newPrefs });
     if (isGuest || !userId || !isFirebaseEnabled) localStorage.setItem(GUEST_PREF_KEY, JSON.stringify(updated));
     else await FirebaseService.firestore.savePreferences(userId, updated);
     if (session !== preferenceSession.current) return;
@@ -219,11 +233,11 @@ export const useAura = () => {
     }
   };
 
-  const getJsPdf = () => jsPDF;
+  const getJsPdf = async () => (await import('jspdf')).jsPDF;
 
-  const generateSummaryPdf = (summaryText, convoMessages = []) => {
+  const generateSummaryPdf = async (summaryText, convoMessages = []) => {
     // Export includes the summary and conversation, including supported image attachments.
-    const JsPdfCtor = getJsPdf();
+    const JsPdfCtor = await getJsPdf();
     if (!JsPdfCtor) return;
 
     const doc = new JsPdfCtor({
@@ -351,7 +365,7 @@ export const useAura = () => {
         console.error("Summary generation error:", err);
       }
 
-      if (chat.isCurrentOperation(operation)) generateSummaryPdf(summaryText, messages);
+      if (chat.isCurrentOperation(operation)) await generateSummaryPdf(summaryText, messages);
     } catch (err) {
       console.error("Summary PDF error:", err);
     } finally {

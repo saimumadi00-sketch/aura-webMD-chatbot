@@ -7,10 +7,8 @@ import React from 'react';
 
 const Loading = () => {
 return (
-<div className="dark">
-<div className="flex items-center justify-center h-screen bg-gray-900">
-<div className="w-16 h-16 border-4 border-t-blue-500 border-gray-700 rounded-full animate-spin" />
-</div>
+<div className="flex items-center justify-center h-screen bg-[var(--aura-bg)]" role="status" aria-label="Loading">
+<div className="w-8 h-8 border-2 border-[var(--aura-border)] border-t-[var(--aura-text)] rounded-full animate-spin" />
 </div>
 );
 };

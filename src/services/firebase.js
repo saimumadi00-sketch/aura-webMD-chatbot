@@ -4,7 +4,7 @@
 
 // src/services/firebase.js
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+import { readAnalyticsConsent } from './analytics-consent';
 import {
   getAuth,
   onAuthStateChanged,
@@ -59,15 +59,39 @@ if (isFirebaseEnabled) {
   db = getFirestore(app);
   storage = getStorage(app);
 
-  const shouldInitAnalytics = isBrowser && firebaseConfig?.measurementId;
-  if (shouldInitAnalytics) {
-    try {
-      analyticsInstance = getAnalytics(app);
-    } catch (err) {
-      console.warn("Firebase analytics disabled:", err?.message || err);
-    }
-  } else if (!firebaseConfig?.measurementId) {
-    console.warn("Firebase analytics skipped: missing VITE_FB_MEASUREMENT_ID.");
+  if (isBrowser && firebaseConfig?.measurementId) {
+    let generation = 0;
+    const applyConsent = async granted => {
+      const current = ++generation;
+      if (!granted && !analyticsInstance) return;
+      try {
+        const api = await import('firebase/analytics');
+        if (current !== generation) return;
+        if (!granted) {
+          api.setAnalyticsCollectionEnabled(analyticsInstance, false);
+          api.setConsent({ analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
+          // Remove this site's analytics cookies when consent is withdrawn.
+          for (const cookie of document.cookie.split(';')) {
+            const name = cookie.split('=')[0].trim();
+            if (/^_ga(?:_|$)|^_gid$|^_gat(?:_|$)/.test(name)) {
+              document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax`;
+              const parts = location.hostname.split('.');
+              for (let i = 0; i < parts.length - 1; i++) document.cookie = `${name}=; Max-Age=0; Path=/; Domain=${parts.slice(i).join('.')}; SameSite=Lax`;
+            }
+          }
+          return;
+        }
+        if (!await api.isSupported() || current !== generation) return;
+        // Disable default page views and advertising signals; turn off enhanced measurement in the GA property before launch.
+        if (!analyticsInstance) analyticsInstance = api.initializeAnalytics(app, { config: { send_page_view: false, allow_google_signals: false, allow_ad_personalization_signals: false } });
+        api.setConsent({ analytics_storage: 'granted', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
+        api.setAnalyticsCollectionEnabled(analyticsInstance, true);
+        api.logEvent(analyticsInstance, 'page_view', { page_location: location.origin + location.pathname, page_title: 'Aura' });
+      } catch { console.warn('Optional analytics is unavailable.'); }
+    };
+    applyConsent(readAnalyticsConsent());
+    window.addEventListener('aura-analytics-consent', event => applyConsent(event.detail === true));
+    window.addEventListener('storage', event => { if (event.key === 'aura-analytics-consent') applyConsent(readAnalyticsConsent()); });
   }
 } else {
   console.warn("Firebase config missing or placeholder values. Running in guest/local-only mode.");
@@ -144,7 +168,7 @@ const FirebaseService = {
   serverTimestamp: serverTimestampSafe,
 };
 
-export const analytics = analyticsInstance;
+export { analyticsInstance as analytics };
 export const auth = authInstance;
 export { isFirebaseEnabled };
 export default FirebaseService;

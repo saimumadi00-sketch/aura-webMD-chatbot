@@ -7,7 +7,10 @@ export async function fetchChatReply(url, payload, { signal, onText } = {}) {
     body: JSON.stringify({ ...payload, stream: true }),
     signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(35000)]) : AbortSignal.timeout(35000),
   });
-  if (!response.ok) throw new Error(response.status === 429 ? 'AI service is busy' : 'AI service unavailable');
+  if (!response.ok) {
+    const message = response.status === 503 ? 'AI is paused or unavailable. Please try later.' : response.status === 429 ? 'An AI quota or daily budget limit has been reached. Please try later.' : 'AI service unavailable';
+    throw Object.assign(new Error(message), { publicMessage: message });
+  }
   // Keep compatibility with a non-streaming development adapter.
   if (!response.headers.get('content-type')?.includes('text/event-stream')) return response.json();
   let text = '';

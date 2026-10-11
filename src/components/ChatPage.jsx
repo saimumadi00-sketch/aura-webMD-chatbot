@@ -2,10 +2,10 @@
  * Session page adapter: choose preferences/billing/chat from internal view state and forward hook actions as props.
  */
 
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import Chat from './Chat';
 import Preferences from './Preferences';
-import Billing from './Billing';
+const Billing = lazy(() => import('./Billing'));
 import Loading from './Loading';
 import { Navigate } from 'react-router-dom';
 
@@ -75,14 +75,14 @@ const ChatPage = ({
 
   if (view === 'billing') {
     return (
-      <Billing
+      <Suspense fallback={<Loading />}><Billing
         theme={theme}
         onToggleTheme={handleToggleTheme}
         user={user}
         isGuest={isGuest}
         onBack={goChat}
         onSelectPlan={handlePlanSelect}
-      />
+      /></Suspense>
     );
   }
 

@@ -4,7 +4,8 @@ import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { readSSE } from '../src/utils/sse.js';
 import { fetchChatReply } from '../src/services/chat-stream.js';
-import { openAIProxy } from '../server/openai-proxy.js';
+import { openAIProxy as createProxy } from '../server/openai-proxy.js';
+const openAIProxy = options => createProxy({ ...options, usageGuard: async () => {}, logger: () => {} });
 import { hookHarness } from './hook-harness.js';
 
 const encode = text => new TextEncoder().encode(text);
